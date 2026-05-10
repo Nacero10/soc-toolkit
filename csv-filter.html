@@ -358,6 +358,251 @@
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #3a3f4b; }
 
+  /* Column manager panel */
+  .col-manager {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: none;
+  }
+  .col-manager.open { display: block; }
+  .col-manager-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+  }
+  .col-manager-header .legend { display: flex; gap: 14px; }
+  .col-manager-header .legend span { display: flex; align-items: center; gap: 5px; }
+  .col-manager-header .legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .col-manager-header .legend .dot.hide { background: var(--danger); }
+  .col-manager-header .legend .dot.mask { background: #fbbf24; }
+  .col-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .col-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text);
+    background: var(--bg-2);
+    cursor: default;
+  }
+  .col-pill .name { padding-right: 4px; user-select: none; }
+  .col-pill .filter-indicator { color: var(--accent); font-size: 9px; margin-right: 2px; }
+  .col-pill button {
+    padding: 1px 6px;
+    font-size: 9px;
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    border-radius: 2px;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .col-pill button:hover { color: var(--text); border-color: var(--text); }
+  .col-pill button.active.hide { background: rgba(255,107,107,0.15); border-color: var(--danger); color: var(--danger); }
+  .col-pill button.active.mask { background: rgba(251,191,36,0.15); border-color: #fbbf24; color: #fbbf24; }
+
+  /* Masked cell */
+  tbody td.masked {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  /* Hidden column (col + cells) */
+  .col-hidden { display: none !important; }
+
+  /* Active filter indicator on header */
+  thead th.has-filter { border-bottom: 2px solid var(--accent); }
+  thead tr.filters input.has-value {
+    border-color: var(--accent);
+    background: rgba(217,241,84,0.08);
+  }
+
+  /* Filter dropdown button on each header */
+  .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    border-radius: 2px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 9px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .filter-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(217,241,84,0.12);
+  }
+
+  /* Excel-style dropdown popup */
+  .filter-popup {
+    position: fixed;
+    z-index: 200;
+    background: var(--panel-2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 280px;
+    max-height: 460px;
+    display: none;
+    flex-direction: column;
+    font-size: 12px;
+  }
+  .filter-popup.open { display: flex; }
+  .filter-popup-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .filter-popup-header .col-name { color: var(--text); font-size: 11px; text-transform: none; letter-spacing: 0.04em; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-popup-sort {
+    display: flex;
+    gap: 4px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .filter-popup-sort button {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 11px;
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--border-soft);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .filter-popup-sort button:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-popup-sort button.active { background: var(--accent); color: #0e0f12; border-color: var(--accent); font-weight: 600; }
+
+  .filter-popup-search {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .filter-popup-search input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11.5px;
+    border-radius: 3px;
+    outline: none;
+  }
+  .filter-popup-search input:focus { border-color: var(--accent); }
+
+  .filter-popup-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+    min-height: 100px;
+  }
+  .filter-popup-item {
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 11.5px;
+    color: var(--text);
+    user-select: none;
+  }
+  .filter-popup-item:hover { background: var(--row-hover); }
+  .filter-popup-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .filter-popup-item .val {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .filter-popup-item .count {
+    color: var(--muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .filter-popup-item.select-all {
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 4px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .filter-popup-item .blank-mark { color: var(--muted); font-style: italic; }
+  .filter-popup-empty {
+    padding: 18px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .filter-popup-footer {
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .filter-popup-footer button {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .filter-popup-footer button.primary {
+    background: var(--accent);
+    color: #0e0f12;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .filter-popup-footer button.primary:hover {
+    background: #e6ff66;
+    color: #0e0f12;
+  }
+  .filter-popup-truncated {
+    padding: 6px 12px;
+    font-size: 10px;
+    color: var(--muted);
+    font-style: italic;
+    border-top: 1px solid var(--border-soft);
+    text-align: center;
+  }
+
   @media (max-width: 640px) {
     header, main, footer { padding-left: 16px; padding-right: 16px; }
     .brand h1 { font-size: 22px; }
@@ -399,9 +644,21 @@
       <span class="glyph">⌕</span>
       <input id="global-search" type="text" placeholder="Search across all columns…" autocomplete="off" />
     </div>
+    <button id="columns-btn" class="ghost" title="Show / hide / mask columns">columns <span id="col-summary" style="color:var(--accent);margin-left:4px;"></span></button>
     <button id="clear-filters" class="ghost" title="Clear all filters">clear filters</button>
     <button id="export-btn" title="Export filtered rows as CSV">export filtered</button>
     <button id="reset-btn" class="ghost" title="Load another file">load another</button>
+  </div>
+
+  <div class="col-manager" id="col-manager">
+    <div class="col-manager-header">
+      <span>Manage columns — click to toggle</span>
+      <span class="legend">
+        <span><span class="dot hide"></span>Hidden</span>
+        <span><span class="dot mask"></span>Masked</span>
+      </span>
+    </div>
+    <div class="col-pills" id="col-pills"></div>
   </div>
 
   <div class="table-wrap" id="table-wrap">
@@ -445,6 +702,26 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Excel-style filter popup -->
+<div class="filter-popup" id="filter-popup">
+  <div class="filter-popup-header">
+    <span class="col-name" id="fp-colname"></span>
+    <span id="fp-meta">—</span>
+  </div>
+  <div class="filter-popup-sort">
+    <button id="fp-sort-asc">↑ A → Z</button>
+    <button id="fp-sort-desc">↓ Z → A</button>
+  </div>
+  <div class="filter-popup-search">
+    <input id="fp-search" type="text" placeholder="Search values…" autocomplete="off" />
+  </div>
+  <div class="filter-popup-list" id="fp-list"></div>
+  <div class="filter-popup-footer">
+    <button id="fp-clear" class="ghost">Clear</button>
+    <button id="fp-apply" class="primary">Apply</button>
+  </div>
+</div>
+
 <script>
 (function () {
   'use strict';
@@ -462,6 +739,9 @@
     page: 0,
     pageSize: 100,
     filteredIndices: [], // indices into state.rows
+    hiddenCols: new Set(),  // column indices hidden from view
+    maskedCols: new Set(),  // column indices masked (value replaced with ●●●●)
+    valueFilters: {},       // { colIdx: Set<string> } — Excel-style allowed values
   };
 
   // ---------- DOM ----------
@@ -653,6 +933,8 @@
         state.sortIndex = -1;
         state.sortDir = 1;
         state.page = 0;
+        state.hiddenCols = new Set();
+        state.maskedCols = new Set();
 
         buildHeader();
         applyFiltersAndSort();
@@ -694,6 +976,7 @@
 
     state.headers.forEach((h, idx) => {
       const th = document.createElement('th');
+      th.dataset.colIdx = idx;
       const wrap = document.createElement('div');
       wrap.className = 'col-head';
       const num = document.createElement('span');
@@ -701,13 +984,30 @@
       num.textContent = String(idx + 1).padStart(2, '0');
       const label = document.createElement('span');
       label.textContent = h;
+      label.style.flex = '1';
+      label.style.overflow = 'hidden';
+      label.style.textOverflow = 'ellipsis';
       const ind = document.createElement('span');
       ind.className = 'sort-ind';
       ind.textContent = '↕';
+
+      // Excel-style filter trigger
+      const filterBtn = document.createElement('button');
+      filterBtn.className = 'filter-btn';
+      filterBtn.textContent = '▼';
+      filterBtn.title = 'Filter by value';
+      filterBtn.dataset.colIdx = idx;
+      filterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFilterPopup(idx, filterBtn);
+      });
+
       wrap.appendChild(num);
       wrap.appendChild(label);
       wrap.appendChild(ind);
-      wrap.addEventListener('click', () => {
+      wrap.appendChild(filterBtn);
+      wrap.addEventListener('click', (e) => {
+        if (e.target === filterBtn || filterBtn.contains(e.target)) return;
         if (state.sortIndex === idx) state.sortDir = -state.sortDir;
         else { state.sortIndex = idx; state.sortDir = 1; }
         state.page = 0;
@@ -717,17 +1017,300 @@
       headerRow.appendChild(th);
 
       const thF = document.createElement('th');
+      thF.dataset.colIdx = idx;
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.placeholder = 'filter…';
       inp.addEventListener('input', () => {
         state.columnFilters[idx] = inp.value;
+        if (inp.value) { inp.classList.add('has-value'); th.classList.add('has-filter'); }
+        else { inp.classList.remove('has-value'); refreshHeaderFilterState(idx); }
         state.page = 0;
         applyFiltersAndSort();
+        updateColPills();
       });
       thF.appendChild(inp);
       filterRow.appendChild(thF);
     });
+    buildColManager();
+  }
+
+  // ---------- Helper: keep header underline correct when either filter type is active ----------
+  function refreshHeaderFilterState(idx) {
+    const th = document.querySelector(`thead tr:not(.filters) th[data-col-idx="${idx}"]`);
+    if (!th) return;
+    const hasText = state.columnFilters[idx] && state.columnFilters[idx].trim();
+    const hasValues = state.valueFilters[idx] && state.valueFilters[idx].size > 0;
+    if (hasText || hasValues) th.classList.add('has-filter');
+    else th.classList.remove('has-filter');
+
+    const btn = th.querySelector('.filter-btn');
+    if (btn) btn.classList.toggle('active', !!hasValues);
+  }
+
+  // ---------- Excel-style filter popup ----------
+  const filterPopup = $('filter-popup');
+  let popupColIdx = -1;
+  let popupSelected = new Set();
+  let popupAllValues = [];
+  let popupTruncated = false;
+  const POPUP_MAX_VALUES = 2000;
+
+  function openFilterPopup(idx, anchorEl) {
+    popupColIdx = idx;
+
+    const counts = new Map();
+    for (let i = 0; i < state.rows.length; i++) {
+      const v = state.rows[i][idx];
+      const key = (v == null || v === '') ? '\u0000__BLANK__' : String(v);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    const all = Array.from(counts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || (a.value < b.value ? -1 : 1));
+    popupTruncated = all.length > POPUP_MAX_VALUES;
+    popupAllValues = popupTruncated ? all.slice(0, POPUP_MAX_VALUES) : all;
+
+    const existing = state.valueFilters[idx];
+    if (existing && existing.size > 0) {
+      popupSelected = new Set(existing);
+    } else {
+      popupSelected = new Set(all.map(o => o.value));
+    }
+
+    $('fp-colname').textContent = state.headers[idx];
+    $('fp-meta').textContent = `${all.length.toLocaleString()} unique`;
+    $('fp-search').value = '';
+
+    const fpAsc = $('fp-sort-asc');
+    const fpDesc = $('fp-sort-desc');
+    fpAsc.classList.toggle('active', state.sortIndex === idx && state.sortDir === 1);
+    fpDesc.classList.toggle('active', state.sortIndex === idx && state.sortDir === -1);
+
+    const rect = anchorEl.getBoundingClientRect();
+    filterPopup.classList.add('open');
+    const popupW = 280;
+    let left = rect.left;
+    if (left + popupW > window.innerWidth - 8) left = window.innerWidth - popupW - 8;
+    if (left < 8) left = 8;
+    filterPopup.style.left = left + 'px';
+    filterPopup.style.top = (rect.bottom + 4) + 'px';
+
+    renderPopupList('');
+  }
+
+  function renderPopupList(searchTerm) {
+    const list = $('fp-list');
+    list.innerHTML = '';
+    const term = (searchTerm || '').toLowerCase();
+
+    const visible = term
+      ? popupAllValues.filter(o => {
+          if (o.value === '\u0000__BLANK__') return '(blank)'.includes(term);
+          return o.value.toLowerCase().includes(term);
+        })
+      : popupAllValues;
+
+    if (!visible.length) {
+      const empty = document.createElement('div');
+      empty.className = 'filter-popup-empty';
+      empty.textContent = 'No matching values';
+      list.appendChild(empty);
+      return;
+    }
+
+    const allChecked = visible.every(o => popupSelected.has(o.value));
+    const someChecked = !allChecked && visible.some(o => popupSelected.has(o.value));
+
+    const selectAll = document.createElement('label');
+    selectAll.className = 'filter-popup-item select-all';
+    const cbAll = document.createElement('input');
+    cbAll.type = 'checkbox';
+    cbAll.checked = allChecked;
+    cbAll.indeterminate = someChecked;
+    cbAll.addEventListener('change', () => {
+      if (cbAll.checked) visible.forEach(o => popupSelected.add(o.value));
+      else visible.forEach(o => popupSelected.delete(o.value));
+      renderPopupList(term);
+    });
+    const lbl = document.createElement('span');
+    lbl.className = 'val';
+    lbl.textContent = `(Select All)${term ? ' — visible' : ''}`;
+    const cnt = document.createElement('span');
+    cnt.className = 'count';
+    cnt.textContent = visible.length.toLocaleString();
+    selectAll.appendChild(cbAll);
+    selectAll.appendChild(lbl);
+    selectAll.appendChild(cnt);
+    list.appendChild(selectAll);
+
+    const renderCount = Math.min(visible.length, 1000);
+    for (let i = 0; i < renderCount; i++) {
+      const o = visible[i];
+      const item = document.createElement('label');
+      item.className = 'filter-popup-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = popupSelected.has(o.value);
+      cb.addEventListener('change', () => {
+        if (cb.checked) popupSelected.add(o.value);
+        else popupSelected.delete(o.value);
+      });
+      const val = document.createElement('span');
+      val.className = 'val';
+      if (o.value === '\u0000__BLANK__') {
+        val.innerHTML = '<span class="blank-mark">(blank)</span>';
+      } else {
+        val.textContent = o.value;
+        val.title = o.value;
+      }
+      const c = document.createElement('span');
+      c.className = 'count';
+      c.textContent = o.count.toLocaleString();
+      item.appendChild(cb);
+      item.appendChild(val);
+      item.appendChild(c);
+      list.appendChild(item);
+    }
+
+    if (renderCount < visible.length) {
+      const more = document.createElement('div');
+      more.className = 'filter-popup-truncated';
+      more.textContent = `+ ${(visible.length - renderCount).toLocaleString()} more — use search to narrow`;
+      list.appendChild(more);
+    }
+    if (popupTruncated && !term) {
+      const tr = document.createElement('div');
+      tr.className = 'filter-popup-truncated';
+      tr.textContent = `Top ${POPUP_MAX_VALUES.toLocaleString()} values shown — use search to find others`;
+      list.appendChild(tr);
+    }
+  }
+
+  function applyFilterPopup() {
+    if (popupColIdx < 0) return;
+    if (popupSelected.size === popupAllValues.length && !popupTruncated) {
+      delete state.valueFilters[popupColIdx];
+    } else if (popupSelected.size === 0) {
+      state.valueFilters[popupColIdx] = new Set();
+    } else {
+      state.valueFilters[popupColIdx] = new Set(popupSelected);
+    }
+    refreshHeaderFilterState(popupColIdx);
+    closeFilterPopup();
+    state.page = 0;
+    tableWrap.scrollTop = 0;
+    applyFiltersAndSort();
+    updateColPills();
+  }
+
+  function clearFilterPopup() {
+    if (popupColIdx < 0) return;
+    delete state.valueFilters[popupColIdx];
+    refreshHeaderFilterState(popupColIdx);
+    closeFilterPopup();
+    state.page = 0;
+    applyFiltersAndSort();
+    updateColPills();
+  }
+
+  function closeFilterPopup() {
+    filterPopup.classList.remove('open');
+    popupColIdx = -1;
+  }
+
+  $('fp-search').addEventListener('input', (e) => renderPopupList(e.target.value));
+  $('fp-apply').addEventListener('click', applyFilterPopup);
+  $('fp-clear').addEventListener('click', clearFilterPopup);
+  $('fp-sort-asc').addEventListener('click', () => {
+    if (popupColIdx < 0) return;
+    state.sortIndex = popupColIdx;
+    state.sortDir = 1;
+    closeFilterPopup();
+    applyFiltersAndSort();
+  });
+  $('fp-sort-desc').addEventListener('click', () => {
+    if (popupColIdx < 0) return;
+    state.sortIndex = popupColIdx;
+    state.sortDir = -1;
+    closeFilterPopup();
+    applyFiltersAndSort();
+  });
+  document.addEventListener('click', (e) => {
+    if (!filterPopup.classList.contains('open')) return;
+    if (filterPopup.contains(e.target)) return;
+    if (e.target.classList && e.target.classList.contains('filter-btn')) return;
+    closeFilterPopup();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && filterPopup.classList.contains('open')) closeFilterPopup();
+  });
+
+  // ---------- Column manager ----------
+  function buildColManager() {
+    const pills = $('col-pills');
+    pills.innerHTML = '';
+    state.headers.forEach((h, idx) => {
+      const pill = document.createElement('div');
+      pill.className = 'col-pill';
+
+      const hasFilter = state.columnFilters[idx] && state.columnFilters[idx].trim();
+      if (hasFilter) {
+        const fi = document.createElement('span');
+        fi.className = 'filter-indicator';
+        fi.textContent = '⌕';
+        fi.title = `Filter: ${state.columnFilters[idx]}`;
+        pill.appendChild(fi);
+      }
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = `${String(idx + 1).padStart(2, '0')} ${h}`;
+      pill.appendChild(name);
+
+      const hideBtn = document.createElement('button');
+      hideBtn.textContent = 'hide';
+      hideBtn.className = 'hide' + (state.hiddenCols.has(idx) ? ' active' : '');
+      hideBtn.title = 'Hide column from view';
+      hideBtn.addEventListener('click', () => {
+        if (state.hiddenCols.has(idx)) state.hiddenCols.delete(idx);
+        else { state.hiddenCols.add(idx); state.maskedCols.delete(idx); }
+        buildColManager();
+        render();
+        updateColSummary();
+      });
+      pill.appendChild(hideBtn);
+
+      const maskBtn = document.createElement('button');
+      maskBtn.textContent = 'mask';
+      maskBtn.className = 'mask' + (state.maskedCols.has(idx) ? ' active' : '');
+      maskBtn.title = 'Replace values with ●●●●●●';
+      maskBtn.addEventListener('click', () => {
+        if (state.maskedCols.has(idx)) state.maskedCols.delete(idx);
+        else { state.maskedCols.add(idx); state.hiddenCols.delete(idx); }
+        buildColManager();
+        render();
+        updateColSummary();
+      });
+      pill.appendChild(maskBtn);
+
+      pills.appendChild(pill);
+    });
+    updateColSummary();
+  }
+
+  function updateColPills() {
+    // Refresh just the filter indicators on pills
+    buildColManager();
+  }
+
+  function updateColSummary() {
+    const h = state.hiddenCols.size;
+    const m = state.maskedCols.size;
+    const parts = [];
+    if (h) parts.push(`${h} hidden`);
+    if (m) parts.push(`${m} masked`);
+    $('col-summary').textContent = parts.length ? `(${parts.join(', ')})` : '';
   }
 
   function updateSortIndicators() {
@@ -824,13 +1407,28 @@
     const colFns = state.columnFilters.map(q => compileFilter(q));
     const globalFn = compileGlobal(state.globalQuery);
 
+    // Cache value filter sets per column for fast lookup
+    const valueFilterEntries = Object.entries(state.valueFilters)
+      .filter(([k, set]) => set instanceof Set)
+      .map(([k, set]) => [parseInt(k, 10), set]);
+
     const indices = [];
     for (let i = 0; i < state.rows.length; i++) {
       const r = state.rows[i];
       let ok = true;
+      // Text-operator filters (per-column input row)
       for (let c = 0; c < colFns.length; c++) {
         const fn = colFns[c];
         if (fn && !fn(r[c])) { ok = false; break; }
+      }
+      // Excel-style value filters (checkbox selection)
+      if (ok && valueFilterEntries.length) {
+        for (let k = 0; k < valueFilterEntries.length; k++) {
+          const [colIdx, allowed] = valueFilterEntries[k];
+          const cell = r[colIdx];
+          const key = (cell == null || cell === '') ? '\u0000__BLANK__' : String(cell);
+          if (!allowed.has(key)) { ok = false; break; }
+        }
       }
       if (ok && globalFn && !globalFn(r)) ok = false;
       if (ok) indices.push(i);
@@ -872,15 +1470,47 @@
 
     state.filteredIndices = indices;
     updateSortIndicators();
+    if (state.pageSize === 'all') tableWrap.scrollTop = 0;
     render();
   }
+
+  // ---------- Virtual scrolling ----------
+  const ROW_HEIGHT = 33;        // approximate height of one row in px
+  const ROW_BUFFER = 15;        // extra rows rendered above/below viewport
+  const VIRTUAL_THRESHOLD = 500; // turn on virtual scroll above this row count
+  const tableWrap = $('table-wrap');
+  let scrollScheduled = false;
+
+  tableWrap.addEventListener('scroll', () => {
+    if (state.filteredIndices.length <= VIRTUAL_THRESHOLD) return;
+    if (state.pageSize !== 'all') return;
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => {
+      scrollScheduled = false;
+      render();
+    });
+  });
 
   function render() {
     const total = state.filteredIndices.length;
     const ps = state.pageSize;
     let start, end;
-    if (ps === 'all') { start = 0; end = total; }
-    else {
+    let useVirtual = false;
+
+    if (ps === 'all') {
+      if (total > VIRTUAL_THRESHOLD) {
+        // Virtual window
+        useVirtual = true;
+        const scrollTop = tableWrap.scrollTop;
+        const viewport = tableWrap.clientHeight || 600;
+        start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_BUFFER);
+        const visibleCount = Math.ceil(viewport / ROW_HEIGHT) + ROW_BUFFER * 2;
+        end = Math.min(total, start + visibleCount);
+      } else {
+        start = 0; end = total;
+      }
+    } else {
       const maxPage = Math.max(0, Math.ceil(total / ps) - 1);
       if (state.page > maxPage) state.page = maxPage;
       start = state.page * ps;
@@ -888,6 +1518,15 @@
     }
 
     const frag = document.createDocumentFragment();
+
+    // Top spacer for virtual scroll
+    if (useVirtual && start > 0) {
+      const spacer = document.createElement('tr');
+      spacer.style.height = (start * ROW_HEIGHT) + 'px';
+      spacer.setAttribute('aria-hidden', 'true');
+      frag.appendChild(spacer);
+    }
+
     for (let i = start; i < end; i++) {
       const ri = state.filteredIndices[i];
       const r = state.rows[ri];
@@ -900,15 +1539,38 @@
 
       for (let c = 0; c < state.headers.length; c++) {
         const td = document.createElement('td');
+        if (state.hiddenCols.has(c)) td.classList.add('col-hidden');
         const v = r[c];
-        td.textContent = v == null ? '' : v;
-        td.title = v == null ? '' : v;
+        if (state.maskedCols.has(c)) {
+          td.classList.add('masked');
+          td.textContent = v == null || v === '' ? '' : '••••••';
+          td.title = '(masked)';
+        } else {
+          td.textContent = v == null ? '' : v;
+          td.title = v == null ? '' : v;
+        }
         tr.appendChild(td);
       }
       frag.appendChild(tr);
     }
+
+    // Bottom spacer for virtual scroll
+    if (useVirtual && end < total) {
+      const spacer = document.createElement('tr');
+      spacer.style.height = ((total - end) * ROW_HEIGHT) + 'px';
+      spacer.setAttribute('aria-hidden', 'true');
+      frag.appendChild(spacer);
+    }
+
     tbody.innerHTML = '';
     tbody.appendChild(frag);
+
+    // Apply hidden state to header cells too
+    document.querySelectorAll('thead th[data-col-idx]').forEach(th => {
+      const idx = parseInt(th.dataset.colIdx, 10);
+      if (state.hiddenCols.has(idx)) th.classList.add('col-hidden');
+      else th.classList.remove('col-hidden');
+    });
 
     // Stats
     $('stat-file').textContent = state.fileName || '—';
@@ -918,7 +1580,9 @@
 
     // Pager
     if (ps === 'all' || total === 0) {
-      pageInfo.textContent = total === 0 ? 'no matches' : `1–${total} of ${total}`;
+      if (total === 0) pageInfo.textContent = 'no matches';
+      else if (useVirtual) pageInfo.textContent = `${total.toLocaleString()} rows · virtual scroll`;
+      else pageInfo.textContent = `1–${total} of ${total}`;
     } else {
       const pageCount = Math.max(1, Math.ceil(total / ps));
       pageInfo.textContent = `${start + 1}–${end} of ${total}  ·  page ${state.page + 1}/${pageCount}`;
@@ -957,10 +1621,18 @@
   $('clear-filters').addEventListener('click', () => {
     state.columnFilters = state.headers.map(() => '');
     state.globalQuery = '';
+    state.valueFilters = {};
     $('global-search').value = '';
-    filterRow.querySelectorAll('input').forEach(inp => inp.value = '');
+    filterRow.querySelectorAll('input').forEach(inp => { inp.value = ''; inp.classList.remove('has-value'); });
+    headerRow.querySelectorAll('th').forEach(th => th.classList.remove('has-filter'));
+    headerRow.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     state.page = 0;
     applyFiltersAndSort();
+    updateColPills();
+  });
+
+  $('columns-btn').addEventListener('click', () => {
+    $('col-manager').classList.toggle('open');
   });
 
   $('export-btn').addEventListener('click', () => {
@@ -991,6 +1663,7 @@
     const v = e.target.value;
     state.pageSize = v === 'all' ? 'all' : parseInt(v, 10);
     state.page = 0;
+    tableWrap.scrollTop = 0;
     render();
   });
   $('prev-page').addEventListener('click', () => {
