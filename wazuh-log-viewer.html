@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wazuh Log Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #090d13;
+    --surface: #0f1520;
+    --surface2: #141d2b;
+    --border: #1e2d42;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --accent3: #3d8bff;
+    --text: #c8d8ee;
+    --text-dim: #5a7a9a;
+    --danger: #ff4455;
+    --warn: #ffb020;
+    --font-mono: 'Space Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scan line overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, rgba(0,229,160,0.04) 0%, transparent 60%);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(6px);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .stats-bar span strong { color: var(--accent); font-size: 15px; }
+
+  /* Upload zone */
+  #upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 48px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 32px;
+    background: var(--surface);
+  }
+  #upload-zone:hover, #upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.04);
+  }
+  #upload-zone h2 { font-family: var(--font-display); font-size: 22px; margin-bottom: 10px; color: var(--text); }
+  #upload-zone p { color: var(--text-dim); margin-bottom: 20px; }
+  .upload-btn {
+    display: inline-block;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px 24px;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .upload-btn:hover { background: var(--accent); color: var(--bg); }
+  #file-input { display: none; }
+
+  /* Main dashboard */
+  #dashboard { display: none; padding: 20px 24px; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    align-items: flex-end;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-group label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .filter-group select, .filter-group input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    min-width: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-group select:focus, .filter-group input:focus { border-color: var(--accent); }
+  .filter-group input[type="datetime-local"] { min-width: 180px; }
+
+  .btn-reset {
+    padding: 6px 18px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    align-self: flex-end;
+  }
+  .btn-reset:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .chart-wide { grid-column: 1 / -1; }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .chart-card h3 {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+  .chart-container { position: relative; }
+
+  /* Table */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-header h3 {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+  #result-count { color: var(--accent); font-size: 12px; }
+
+  .table-scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+
+  table { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--surface2);
+    padding: 8px 10px 8px 12px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    user-select: none;
+    overflow: hidden;
+    vertical-align: middle;
+    /* resizable */
+    position: sticky;
+    top: 0;
+    box-sizing: border-box;
+  }
+  thead th .th-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    overflow: hidden;
+  }
+  thead th .th-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    cursor: pointer;
+  }
+  thead th .th-label:hover { color: var(--accent); }
+
+  /* Resize handle */
+  .resize-handle {
+    width: 4px;
+    min-width: 4px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    border-right: 2px solid var(--border);
+    margin-right: -10px;
+    border-radius: 1px;
+    transition: border-color 0.15s;
+    align-self: stretch;
+  }
+  .resize-handle:hover, .resize-handle.dragging { border-color: var(--accent); }
+
+  thead th:hover { color: var(--accent); }
+  tbody tr { border-bottom: 1px solid rgba(30,45,66,0.6); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(0,229,160,0.04); }
+  tbody td {
+    padding: 7px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  tbody td:hover { background: rgba(0,229,160,0.06); }
+
+  /* Cell expand modal */
+  #cell-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #cell-modal.open { display: flex; }
+  #cell-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(2px);
+  }
+  #cell-modal-box {
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 20px 24px;
+    max-width: 680px;
+    width: 90%;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 1;
+    box-shadow: 0 0 40px rgba(0,229,160,0.15);
+  }
+  #cell-modal-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-family: var(--font-display);
+    font-weight: 600;
+  }
+  #cell-modal-content {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.7;
+  }
+  #cell-modal-close {
+    position: absolute;
+    top: 10px; right: 14px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  #cell-modal-close:hover { color: var(--danger); }
+  #cell-modal-copy {
+    margin-top: 14px;
+    padding: 5px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  #cell-modal-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .badge-low    { background: rgba(0,229,160,0.12); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .badge-med    { background: rgba(255,176,32,0.12); color: var(--warn); border: 1px solid rgba(255,176,32,0.3); }
+  .badge-high   { background: rgba(255,107,53,0.15); color: var(--accent2); border: 1px solid rgba(255,107,53,0.3); }
+  .badge-crit   { background: rgba(255,68,85,0.15); color: var(--danger); border: 1px solid rgba(255,68,85,0.3); }
+
+  .process-name { color: var(--accent3); font-size: 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .agent-name { color: var(--warn); }
+  .user-name { color: var(--text); }
+  .ts-cell { color: var(--text-dim); font-size: 10px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  .no-data { color: var(--text-dim); text-align: center; padding: 40px; font-size: 12px; }
+
+  /* Column toggles */
+  .col-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .col-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    user-select: none;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .col-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .col-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.08); }
+  .col-toggle .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .ip-cell { color: var(--accent3); font-size: 10px; font-family: var(--font-mono); }
+  .domain-cell { color: #a78bfa; font-size: 10px; }
+  .logon-cell { color: var(--text-dim); font-size: 10px; font-family: var(--font-mono); }
+  .ruleid-cell { color: var(--warn); font-size: 10px; }
+  .manager-cell { color: var(--text-dim); font-size: 10px; }
+  .systime-cell { color: #5a9a8a; font-size: 10px; }
+</style>
+</head>
+<body>
+
+<div style="background:#070b10;border-bottom:1px solid #1e2d42;padding:7px 20px;display:flex;align-items:center;gap:12px;font-family:'Space Mono',monospace;font-size:11px;">
+  <a href="index.html" style="color:#00e5a0;text-decoration:none;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;text-transform:uppercase;opacity:0.85;transition:opacity 0.15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">← SOC Toolkit</a>
+  <span style="color:#1e2d42">|</span>
+  <span style="color:#5a7a9a;letter-spacing:1px;text-transform:uppercase;">Wazuh Log Analyzer</span>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    WAZUH LOG ANALYZER
+  </div>
+  <div class="stats-bar" id="header-stats"></div>
+</header>
+
+<!-- Upload -->
+<div id="upload-zone">
+  <h2>Drop your Wazuh alert file</h2>
+  <p>Supports JSON array of Wazuh alert documents (Elasticsearch export format)</p>
+  <label class="upload-btn" for="file-input">Browse File</label>
+  <input type="file" id="file-input" accept=".json">
+  <p style="margin-top:16px;font-size:11px;color:var(--text-dim)">Or paste raw JSON below and click Load</p>
+  <textarea id="paste-area" style="margin-top:10px;width:100%;max-width:600px;height:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;font-family:var(--font-mono);font-size:11px;border-radius:2px;resize:vertical;outline:none;" placeholder='[{"_source": {...}}, ...]'></textarea>
+  <br><button class="upload-btn" style="margin-top:10px;" onclick="loadPasted()">Load Pasted JSON</button>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Agent</label>
+      <select id="f-agent"><option value="">All Agents</option></select>
+    </div>
+    <div class="filter-group">
+      <label>User</label>
+      <select id="f-user"><option value="">All Users</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Rule Level</label>
+      <select id="f-level">
+        <option value="">All Levels</option>
+        <option value="low">Low (1-5)</option>
+        <option value="med">Medium (6-11)</option>
+        <option value="high">High (12-14)</option>
+        <option value="crit">Critical (15+)</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Event ID</label>
+      <select id="f-eventid"><option value="">All Event IDs</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Process (search)</label>
+      <input type="text" id="f-process" placeholder="e.g. powershell">
+    </div>
+    <div class="filter-group">
+      <label>From</label>
+      <input type="datetime-local" id="f-from">
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input type="datetime-local" id="f-to">
+    </div>
+    <button class="btn-reset" onclick="resetFilters()">✕ Reset</button>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card chart-wide">
+      <h3>Event Timeline</h3>
+      <div class="chart-container" style="height:160px"><canvas id="chart-timeline"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Alerts by Agent</h3>
+      <div class="chart-container" style="height:200px"><canvas id="chart-agents"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Alerts by User</h3>
+      <div class="chart-container" style="height:200px"><canvas id="chart-users"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Top Processes</h3>
+      <div class="chart-container" style="height:200px"><canvas id="chart-procs"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Rule Level Distribution</h3>
+      <div class="chart-container" style="height:200px"><canvas id="chart-levels"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3>Event Log</h3>
+      <span id="result-count"></span>
+    </div>
+    <div class="col-toggles" id="col-toggles"></div>
+    <div class="table-scroll">
+      <table id="log-table">
+        <thead>
+          <tr id="log-thead-row"></tr>
+        </thead>
+        <tbody id="log-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let allLogs = [];
+let filtered = [];
+let sortKey = 'timestamp';
+let sortAsc = false;
+let charts = {};
+
+// ─── Data Loading ────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => parseAndRender(ev.target.result);
+  reader.readAsText(file);
+});
+
+const dz = document.getElementById('upload-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => parseAndRender(ev.target.result);
+  reader.readAsText(file);
+});
+
+function loadPasted() {
+  const text = document.getElementById('paste-area').value.trim();
+  if (text) parseAndRender(text);
+}
+
+function parseAndRender(text) {
+  try {
+    let raw = JSON.parse(text);
+    if (!Array.isArray(raw)) raw = [raw];
+    allLogs = raw.map(normalize).filter(Boolean);
+    if (!allLogs.length) { alert('No parseable events found.'); return; }
+    initFilters();
+    applyFilters();
+    buildColToggles();
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    updateHeaderStats();
+  } catch(e) {
+    alert('Invalid JSON: ' + e.message);
+  }
+}
+
+function normalize(doc) {
+  const src = doc._source || doc;
+  const win = src?.data?.win || {};
+  const sys = win?.system || {};
+  const evd = win?.eventdata || {};
+  const agent = src?.agent || {};
+  const rule = src?.rule || {};
+  const mgr = src?.manager || {};
+  return {
+    id: doc._id || Math.random().toString(36),
+    index: doc._index || '',
+    timestamp: src.timestamp || sys.systemTime || '',
+    systemTime: sys.systemTime || '',
+    agentName: agent.name || 'unknown',
+    agentIP: agent.ip || '',
+    agentID: agent.id || '',
+    manager: mgr.name || '',
+    user: evd.subjectUserName || src?.data?.srcuser || '',
+    domain: evd.subjectDomainName || '',
+    logonID: evd.subjectLogonId || '',
+    process: evd.newProcessName || evd.processName || evd.image || '',
+    processFullPath: evd.newProcessName || evd.processName || evd.image || '',
+    image: evd.newProcessName || evd.processName || evd.image || '',
+    commandLine: evd.commandLine || evd.processCommandLine || evd.CommandLine || '',
+    parentProcess: evd.parentProcessName || evd.parentImage || '',
+    parentFullPath: evd.parentProcessName || evd.parentImage || '',
+    eventID: sys.eventID || '',
+    level: parseInt(rule.level) || 0,
+    ruleID: rule.id || '',
+    firedTimes: rule.firedtimes || 1,
+    description: rule.description || '',
+    groups: (rule.groups || []).join(', '),
+    provider: sys.providerName || '',
+    location: src.location || '',
+    decoder: src?.decoder?.name || '',
+  };
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function initFilters() {
+  populateSelect('f-agent', [...new Set(allLogs.map(l => l.agentName))].sort());
+  populateSelect('f-user', [...new Set(allLogs.map(l => l.user).filter(Boolean))].sort());
+  populateSelect('f-eventid', [...new Set(allLogs.map(l => l.eventID).filter(Boolean))].sort());
+
+  const times = allLogs.map(l => l.timestamp).filter(Boolean).sort();
+  if (times.length) {
+    document.getElementById('f-from').value = toDateTimeLocal(times[0]);
+    document.getElementById('f-to').value = toDateTimeLocal(times[times.length-1]);
+  }
+
+  ['f-agent','f-user','f-level','f-eventid'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilters));
+  document.getElementById('f-process').addEventListener('input', applyFilters);
+  document.getElementById('f-from').addEventListener('change', applyFilters);
+  document.getElementById('f-to').addEventListener('change', applyFilters);
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(first);
+  values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+}
+
+function toDateTimeLocal(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+
+function resetFilters() {
+  ['f-agent','f-user','f-level','f-eventid'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-process').value = '';
+  const times = allLogs.map(l => l.timestamp).filter(Boolean).sort();
+  if (times.length) {
+    document.getElementById('f-from').value = toDateTimeLocal(times[0]);
+    document.getElementById('f-to').value = toDateTimeLocal(times[times.length-1]);
+  }
+  applyFilters();
+}
+
+function applyFilters() {
+  const agent = document.getElementById('f-agent').value;
+  const user = document.getElementById('f-user').value;
+  const level = document.getElementById('f-level').value;
+  const eventid = document.getElementById('f-eventid').value;
+  const proc = document.getElementById('f-process').value.toLowerCase();
+  const from = document.getElementById('f-from').value ? new Date(document.getElementById('f-from').value) : null;
+  const to = document.getElementById('f-to').value ? new Date(document.getElementById('f-to').value) : null;
+
+  filtered = allLogs.filter(l => {
+    if (agent && l.agentName !== agent) return false;
+    if (user && l.user !== user) return false;
+    if (eventid && l.eventID !== eventid) return false;
+    if (proc && !l.process.toLowerCase().includes(proc)) return false;
+    if (level) {
+      if (level === 'low'  && !(l.level >= 1  && l.level <= 5))  return false;
+      if (level === 'med'  && !(l.level >= 6  && l.level <= 11)) return false;
+      if (level === 'high' && !(l.level >= 12 && l.level <= 14)) return false;
+      if (level === 'crit' && !(l.level >= 15))                  return false;
+    }
+    if (from || to) {
+      const t = new Date(l.timestamp);
+      if (from && t < from) return false;
+      if (to   && t > to)   return false;
+    }
+    return true;
+  });
+
+  renderCharts();
+  renderTable();
+  updateHeaderStats();
+}
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+const PALETTE = ['#00e5a0','#3d8bff','#ff6b35','#ffb020','#a78bfa','#34d399','#f87171','#60a5fa'];
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts() {
+  renderTimeline();
+  renderBar('chart-agents', topN(filtered, 'agentName', 8), 'Agents');
+  renderBar('chart-users',  topN(filtered, 'user', 8), 'Users');
+  renderProcBar();
+  renderLevelDoughnut();
+}
+
+function topN(data, key, n) {
+  const counts = {};
+  data.forEach(l => { const v = l[key] || '(none)'; counts[v] = (counts[v]||0)+1; });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+
+function renderTimeline() {
+  destroyChart('timeline');
+  const buckets = {};
+  filtered.forEach(l => {
+    if (!l.timestamp) return;
+    const d = new Date(l.timestamp);
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')} ${String(d.getUTCHours()).padStart(2,'0')}:00`;
+    buckets[key] = (buckets[key]||0)+1;
+  });
+  const labels = Object.keys(buckets).sort();
+  const values = labels.map(k => buckets[k]);
+
+  const ctx = document.getElementById('chart-timeline').getContext('2d');
+  charts['timeline'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Events',
+        data: values,
+        backgroundColor: 'rgba(0,229,160,0.25)',
+        borderColor: '#00e5a0',
+        borderWidth: 1,
+        borderRadius: 1,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
+      scales: {
+        x: { ticks: { color: '#5a7a9a', font: { family: 'Space Mono', size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(30,45,66,0.5)' } },
+        y: { ticks: { color: '#5a7a9a', font: { family: 'Space Mono', size: 10 } }, grid: { color: 'rgba(30,45,66,0.5)' } }
+      }
+    }
+  });
+}
+
+function renderBar(canvasId, pairs, label) {
+  const key = canvasId.replace('chart-','');
+  destroyChart(key);
+  if (!pairs.length) return;
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[key] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p=>p[0]),
+      datasets: [{
+        label,
+        data: pairs.map(p=>p[1]),
+        backgroundColor: PALETTE.map(c => c+'44'),
+        borderColor: PALETTE,
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#5a7a9a', font: { family: 'Space Mono', size: 10 } }, grid: { color: 'rgba(30,45,66,0.5)' } },
+        y: { ticks: { color: '#c8d8ee', font: { family: 'Space Mono', size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderProcBar() {
+  const pairs = topN(filtered, 'process', 8).map(([p, n]) => {
+    const parts = p.replace(/\\/g, '/').split('/');
+    return [parts[parts.length - 1] || p, n];
+  });
+  const key = 'procs';
+  destroyChart(key);
+  if (!pairs.length) return;
+  const ctx = document.getElementById('chart-procs').getContext('2d');
+  charts[key] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p=>p[0]),
+      datasets: [{
+        label: 'Process',
+        data: pairs.map(p=>p[1]),
+        backgroundColor: PALETTE.map(c=>c+'44'),
+        borderColor: PALETTE,
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#5a7a9a', font: { family: 'Space Mono', size: 10 } }, grid: { color: 'rgba(30,45,66,0.5)' } },
+        y: { ticks: { color: '#c8d8ee', font: { family: 'Space Mono', size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderLevelDoughnut() {
+  const buckets = { low:0, med:0, high:0, crit:0 };
+  filtered.forEach(l => {
+    if (l.level >= 15) buckets.crit++;
+    else if (l.level >= 12) buckets.high++;
+    else if (l.level >= 6) buckets.med++;
+    else buckets.low++;
+  });
+  const key = 'levels';
+  destroyChart(key);
+  const ctx = document.getElementById('chart-levels').getContext('2d');
+  charts[key] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Low (1-5)', 'Medium (6-11)', 'High (12-14)', 'Critical (15+)'],
+      datasets: [{
+        data: [buckets.low, buckets.med, buckets.high, buckets.crit],
+        backgroundColor: ['rgba(0,229,160,0.7)', 'rgba(255,176,32,0.7)', 'rgba(255,107,53,0.7)', 'rgba(255,68,85,0.7)'],
+        borderColor: ['#00e5a0','#ffb020','#ff6b35','#ff4455'],
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#c8d8ee', font: { family: 'Space Mono', size: 10 }, padding: 12 } }
+      },
+      cutout: '60%',
+    }
+  });
+}
+
+// ─── Column Definitions ───────────────────────────────────────────────────────
+const COLUMNS = [
+  { key: 'timestamp',   label: 'Wazuh Time',    sortable: true,  defaultOn: true,
+    render: l => `<td class="ts-cell">${l.timestamp ? new Date(l.timestamp).toISOString().replace('T',' ').slice(0,19) : '—'}</td>` },
+  { key: 'systemTime',  label: 'System Time',   sortable: true,  defaultOn: false,
+    render: l => `<td class="systime-cell">${l.systemTime ? new Date(l.systemTime).toISOString().replace('T',' ').slice(0,19) : '—'}</td>` },
+  { key: 'agentName',   label: 'Agent',         sortable: true,  defaultOn: true,
+    render: l => `<td class="agent-name">${l.agentName}</td>` },
+  { key: 'agentIP',     label: 'Agent IP',      sortable: true,  defaultOn: true,
+    render: l => `<td class="ip-cell">${l.agentIP || '—'}</td>` },
+  { key: 'agentID',     label: 'Agent ID',      sortable: true,  defaultOn: false,
+    render: l => `<td class="logon-cell">${l.agentID || '—'}</td>` },
+  { key: 'manager',     label: 'Manager',       sortable: true,  defaultOn: false,
+    render: l => `<td class="manager-cell">${l.manager || '—'}</td>` },
+  { key: 'user',        label: 'User',          sortable: true,  defaultOn: true,
+    render: l => `<td class="user-name">${l.user || '—'}</td>` },
+  { key: 'domain',      label: 'Domain',        sortable: true,  defaultOn: true,
+    render: l => `<td class="domain-cell">${l.domain || '—'}</td>` },
+  { key: 'logonID',     label: 'Logon ID',      sortable: false, defaultOn: true,
+    render: l => `<td class="logon-cell">${l.logonID || '—'}</td>` },
+  { key: 'level',       label: 'Level',         sortable: true,  defaultOn: true,
+    render: l => `<td>${levelBadge(l.level)}</td>` },
+  { key: 'ruleID',      label: 'Rule ID',       sortable: true,  defaultOn: true,
+    render: l => `<td class="ruleid-cell">${l.ruleID || '—'}</td>` },
+  { key: 'firedTimes',  label: 'Fired',         sortable: true,  defaultOn: false,
+    render: l => `<td class="logon-cell" style="text-align:center">${l.firedTimes}</td>` },
+  { key: 'eventID',     label: 'Event ID',      sortable: true,  defaultOn: true,
+    render: l => `<td style="color:var(--text-dim)">${l.eventID || '—'}</td>` },
+  { key: 'process',     label: 'Process',       sortable: false, defaultOn: true,
+    render: l => { const p = l.process ? l.process.replace(/\\/g,'/').split('/').pop() : '—';
+      return `<td class="process-name" title="${l.processFullPath}">${p}</td>`; } },
+  { key: 'parentProcess', label: 'Parent',      sortable: false, defaultOn: true,
+    render: l => { const p = l.parentProcess ? l.parentProcess.replace(/\\/g,'/').split('/').pop() : '—';
+      return `<td class="process-name" title="${l.parentFullPath}" style="color:var(--text-dim)">${p}</td>`; } },
+  { key: 'image',       label: 'Image',         sortable: false, defaultOn: true,
+    render: l => `<td class="process-name" title="${l.image}" style="color:#7dd3fc;max-width:280px;overflow:hidden;text-overflow:ellipsis">${l.image || '—'}</td>` },
+  { key: 'commandLine', label: 'CommandLine',   sortable: false, defaultOn: true,
+    render: l => `<td style="color:#fcd34d;font-size:10px;max-width:320px;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono)" title="${l.commandLine}">${l.commandLine || '—'}</td>` },
+  { key: 'provider',    label: 'Provider',      sortable: false, defaultOn: false,
+    render: l => `<td class="manager-cell" style="max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${l.provider}">${l.provider || '—'}</td>` },
+  { key: 'groups',      label: 'Groups',        sortable: false, defaultOn: false,
+    render: l => `<td class="domain-cell">${l.groups || '—'}</td>` },
+  { key: 'location',    label: 'Location',      sortable: false, defaultOn: false,
+    render: l => `<td class="manager-cell">${l.location || '—'}</td>` },
+  { key: 'decoder',     label: 'Decoder',       sortable: false, defaultOn: false,
+    render: l => `<td class="manager-cell">${l.decoder || '—'}</td>` },
+  { key: 'description', label: 'Rule Desc',     sortable: false, defaultOn: true,
+    render: l => `<td style="color:var(--text-dim);font-size:10px;max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${l.description}">${l.description || '—'}</td>` },
+  { key: 'index',       label: 'Index',         sortable: false, defaultOn: false,
+    render: l => `<td class="logon-cell" style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${l.index}">${l.index || '—'}</td>` },
+];
+
+let visibleCols = new Set(COLUMNS.filter(c => c.defaultOn).map(c => c.key));
+
+function buildColToggles() {
+  const container = document.getElementById('col-toggles');
+  container.innerHTML = '';
+  COLUMNS.forEach(col => {
+    const btn = document.createElement('div');
+    btn.className = 'col-toggle' + (visibleCols.has(col.key) ? ' active' : '');
+    btn.innerHTML = `<span class="dot"></span>${col.label}`;
+    btn.onclick = () => {
+      if (visibleCols.has(col.key)) visibleCols.delete(col.key);
+      else visibleCols.add(col.key);
+      btn.classList.toggle('active');
+      renderTable();
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ─── Column widths (px) ───────────────────────────────────────────────────────
+const DEFAULT_WIDTHS = {
+  timestamp: 148, systemTime: 148, agentName: 100, agentIP: 110, agentID: 72,
+  manager: 90, user: 90, domain: 90, logonID: 90, level: 82, ruleID: 72,
+  firedTimes: 60, eventID: 80, process: 140, parentProcess: 140,
+  image: 280, commandLine: 320, provider: 180, groups: 90, location: 110,
+  decoder: 110, description: 200, index: 160,
+};
+const colWidths = { ...DEFAULT_WIDTHS };
+
+// ─── Table ────────────────────────────────────────────────────────────────────
+function sortBy(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = true; }
+  renderTable();
+}
+
+function renderTable() {
+  const activeCols = COLUMNS.filter(c => visibleCols.has(c.key));
+
+  // Header with resize handles
+  const thead = document.getElementById('log-thead-row');
+  thead.innerHTML = activeCols.map(col => {
+    const w = colWidths[col.key] || 120;
+    const arrow = col.sortable ? (sortKey === col.key ? (sortAsc ? ' ↑' : ' ↓') : ' ↕') : '';
+    return `<th data-col="${col.key}" style="width:${w}px;min-width:${w}px;max-width:${w}px">
+      <div class="th-inner">
+        <span class="th-label" ${col.sortable ? `onclick="sortBy('${col.key}')"` : ''}>${col.label}${arrow}</span>
+        <div class="resize-handle" data-col="${col.key}" onmousedown="startResize(event,'${col.key}')"></div>
+      </div>
+    </th>`;
+  }).join('');
+
+  const sorted = [...filtered].sort((a, b) => {
+    let av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+    if (sortKey === 'timestamp' || sortKey === 'systemTime') { av = new Date(av); bv = new Date(bv); }
+    if (sortKey === 'level' || sortKey === 'firedTimes') { av = parseInt(av)||0; bv = parseInt(bv)||0; }
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  document.getElementById('result-count').textContent = `${sorted.length} events`;
+  const tbody = document.getElementById('log-table-body');
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="${activeCols.length}" class="no-data">No events match filters</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sorted.map((l, ri) =>
+    `<tr>${activeCols.map((col, ci) => {
+      const raw = getCellRaw(l, col.key);
+      const cell = col.render(l);
+      // Inject click handler into the td
+      return cell.replace('<td', `<td onclick="openModal('${col.label}',this)" data-raw="${escAttr(raw)}"`);
+    }).join('')}</tr>`
+  ).join('');
+}
+
+function getCellRaw(l, key) {
+  // Return full untruncated value for the modal
+  const map = {
+    timestamp: l.timestamp, systemTime: l.systemTime, agentName: l.agentName,
+    agentIP: l.agentIP, agentID: l.agentID, manager: l.manager, user: l.user,
+    domain: l.domain, logonID: l.logonID, level: String(l.level),
+    ruleID: l.ruleID, firedTimes: String(l.firedTimes), eventID: l.eventID,
+    process: l.processFullPath, parentProcess: l.parentFullPath,
+    image: l.image, commandLine: l.commandLine, provider: l.provider,
+    groups: l.groups, location: l.location, decoder: l.decoder,
+    description: l.description, index: l.index,
+  };
+  return map[key] || '';
+}
+
+function escAttr(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Cell expand modal ────────────────────────────────────────────────────────
+function openModal(label, td) {
+  const raw = td.getAttribute('data-raw') || td.innerText;
+  document.getElementById('cell-modal-label').textContent = label;
+  document.getElementById('cell-modal-content').textContent = raw || '(empty)';
+  document.getElementById('cell-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('cell-modal').classList.remove('open');
+}
+function copyModal() {
+  const text = document.getElementById('cell-modal-content').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('cell-modal-copy');
+    btn.textContent = '✓ Copied'; setTimeout(() => btn.textContent = '⎘ Copy', 1500);
+  });
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─── Column resize ────────────────────────────────────────────────────────────
+let resizing = null;
+
+function startResize(e, colKey) {
+  e.preventDefault();
+  e.stopPropagation();
+  const startX = e.clientX;
+  const startW = colWidths[colKey] || 120;
+  resizing = colKey;
+  e.target.classList.add('dragging');
+
+  const onMove = ev => {
+    const delta = ev.clientX - startX;
+    const newW = Math.max(50, startW + delta);
+    colWidths[colKey] = newW;
+    // Update all th and td for this column without full re-render
+    const ths = document.querySelectorAll(`th[data-col="${colKey}"]`);
+    ths.forEach(th => { th.style.width = newW+'px'; th.style.minWidth = newW+'px'; th.style.maxWidth = newW+'px'; });
+  };
+
+  const onUp = ev => {
+    resizing = null;
+    e.target.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function levelBadge(lvl) {
+  if (lvl >= 15) return `<span class="badge badge-crit">CRIT ${lvl}</span>`;
+  if (lvl >= 12) return `<span class="badge badge-high">HIGH ${lvl}</span>`;
+  if (lvl >= 6)  return `<span class="badge badge-med">MED ${lvl}</span>`;
+  return `<span class="badge badge-low">LOW ${lvl}</span>`;
+}
+
+// ─── Header Stats ─────────────────────────────────────────────────────────────
+function updateHeaderStats() {
+  const agents = new Set(filtered.map(l=>l.agentName)).size;
+  const users  = new Set(filtered.map(l=>l.user).filter(Boolean)).size;
+  const crit   = filtered.filter(l=>l.level>=12).length;
+  document.getElementById('header-stats').innerHTML = `
+    <span><strong>${filtered.length}</strong><br>events</span>
+    <span><strong>${agents}</strong><br>agents</span>
+    <span><strong>${users}</strong><br>users</span>
+    <span style="color:var(--danger)"><strong>${crit}</strong><br>high+crit</span>
+  `;
+}
+</script>
+<!-- Cell expand modal -->
+<div id="cell-modal">
+  <div id="cell-modal-backdrop" onclick="closeModal()"></div>
+  <div id="cell-modal-box">
+    <button id="cell-modal-close" onclick="closeModal()">×</button>
+    <div id="cell-modal-label"></div>
+    <div id="cell-modal-content"></div>
+    <button id="cell-modal-copy" onclick="copyModal()">⎘ Copy</button>
+  </div>
+</div>
+
+</body>
+</html>

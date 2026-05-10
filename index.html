@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC Toolkit</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&family=Fraunces:opsz,wght@9..144,400;9..144,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090d13;
+    --surface: #0f1520;
+    --surface2: #141d2b;
+    --border: #1e2d42;
+    --accent-wazuh: #00e5a0;
+    --accent-csv: #d9f154;
+    --text: #c8d8ee;
+    --text-dim: #5a7a9a;
+    --font-mono: 'Space Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,229,160,0.06); top: -150px; right: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(217,241,84,0.05); bottom: -100px; left: -80px; }
+
+  header {
+    position: relative; z-index: 1;
+    padding: 28px 48px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    border: 1px solid var(--accent-wazuh);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 18px rgba(0,229,160,0.2);
+  }
+  .logo-text h1 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .logo-text p {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 2px;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 8px;
+  }
+  .badge {
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .badge.green { border-color: rgba(0,229,160,0.3); color: var(--accent-wazuh); background: rgba(0,229,160,0.06); }
+
+  main {
+    flex: 1;
+    position: relative; z-index: 1;
+    padding: 64px 48px;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+  .hero-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--accent-wazuh);
+    margin-bottom: 16px;
+  }
+  .hero h2 {
+    font-family: var(--font-display);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 18px;
+  }
+  .hero h2 em { font-style: normal; color: var(--accent-wazuh); }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 13px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.8;
+  }
+
+  /* Tool cards */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px;
+    margin-bottom: 64px;
+  }
+
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 32px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    transition: opacity 0.2s;
+  }
+  .tool-card.wazuh::before { background: linear-gradient(90deg, var(--accent-wazuh), transparent); }
+  .tool-card.csv::before   { background: linear-gradient(90deg, var(--accent-csv), transparent); }
+
+  .tool-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+  .tool-card.wazuh:hover { border-color: var(--accent-wazuh); box-shadow: 0 12px 40px rgba(0,229,160,0.1); }
+  .tool-card.csv:hover   { border-color: var(--accent-csv);   box-shadow: 0 12px 40px rgba(217,241,84,0.08); }
+
+  .card-icon {
+    font-size: 32px;
+    width: 56px; height: 56px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+  .wazuh .card-icon { background: rgba(0,229,160,0.07); border-color: rgba(0,229,160,0.2); }
+  .csv   .card-icon { background: rgba(217,241,84,0.07); border-color: rgba(217,241,84,0.2); }
+
+  .card-body h3 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-bottom: 8px;
+  }
+  .wazuh .card-body h3 { color: var(--accent-wazuh); }
+  .csv   .card-body h3 { color: var(--accent-csv); }
+
+  .card-body p {
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .card-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .feature-tag {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .wazuh .feature-tag { border-color: rgba(0,229,160,0.2); color: rgba(0,229,160,0.7); }
+  .csv   .feature-tag { border-color: rgba(217,241,84,0.2); color: rgba(217,241,84,0.7); }
+
+  .card-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  .card-cta span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+  }
+  .wazuh .card-cta span { color: var(--accent-wazuh); }
+  .csv   .card-cta span { color: var(--accent-csv); }
+  .card-cta .arrow { font-size: 18px; transition: transform 0.2s; }
+  .tool-card:hover .arrow { transform: translateX(5px); }
+
+  /* Info section */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+  }
+  .info-card .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .info-card .value {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  footer {
+    position: relative; z-index: 1;
+    padding: 20px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  footer a { color: var(--accent-wazuh); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    header, main, footer { padding-left: 20px; padding-right: 20px; }
+    main { padding-top: 40px; padding-bottom: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡</div>
+    <div class="logo-text">
+      <h1>SOC Toolkit</h1>
+      <p>Local · Browser-based · No upload</p>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge green">● Offline</span>
+    <span class="badge">2 Tools</span>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-label">Browser-based security tools</div>
+    <h2>Analyze logs.<br><em>Find threats.</em></h2>
+    <p>Drop your log files and explore them locally. Nothing ever leaves your machine — no server, no tracking, no install.</p>
+  </div>
+
+  <div class="tools-grid">
+
+    <!-- Wazuh Tool -->
+    <a class="tool-card wazuh" href="wazuh-log-viewer.html">
+      <div class="card-icon">📡</div>
+      <div class="card-body">
+        <h3>Wazuh Log Analyzer</h3>
+        <p>Visualize and investigate Wazuh SIEM alert exports. Charts, filters, and a fully interactive event table with 21 toggleable columns.</p>
+      </div>
+      <div class="card-features">
+        <span class="feature-tag">JSON / Elasticsearch</span>
+        <span class="feature-tag">Timeline</span>
+        <span class="feature-tag">21 columns</span>
+        <span class="feature-tag">Resizable</span>
+        <span class="feature-tag">Click to expand</span>
+      </div>
+      <div class="card-cta">
+        <span>Open Tool</span>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <!-- CSV Tool -->
+    <a class="tool-card csv" href="csv-filter.html">
+      <div class="card-icon">📊</div>
+      <div class="card-body">
+        <h3>CSV Filter &amp; Viewer</h3>
+        <p>Load any CSV, TSV, or pipe-delimited file. Per-column filters with range and comparison operators, sortable columns, and export of filtered rows.</p>
+      </div>
+      <div class="card-features">
+        <span class="feature-tag">CSV / TSV / TXT</span>
+        <span class="feature-tag">Per-column filter</span>
+        <span class="feature-tag">Sort</span>
+        <span class="feature-tag">Export</span>
+        <span class="feature-tag">Auto-delimiter</span>
+      </div>
+      <div class="card-cta">
+        <span>Open Tool</span>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="label">Privacy</div>
+      <div class="value">100% Local</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Install required</div>
+      <div class="value">None</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Server required</div>
+      <div class="value">None</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Tools available</div>
+      <div class="value">2 and counting</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>All processing runs locally in your browser</span>
+  <span>SOC Toolkit · <a href="https://github.com/YOUR_USERNAME/soc-toolkit">GitHub</a></span>
+</footer>
+
+</body>
+</html>

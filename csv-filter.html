@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CSV Filter — Local Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0e0f12;
+    --bg-2: #14161b;
+    --panel: #181a20;
+    --panel-2: #1e2128;
+    --border: #2a2e38;
+    --border-soft: #22252d;
+    --text: #e7e9ee;
+    --muted: #8a8f9c;
+    --accent: #d9f154;
+    --accent-dim: #aab74a;
+    --danger: #ff6b6b;
+    --ok: #7ee7a0;
+    --row-hover: #1c1f26;
+    --row-zebra: #16181d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(900px 600px at 100% -10%, rgba(217,241,84,0.06), transparent 60%),
+      radial-gradient(700px 500px at -10% 110%, rgba(217,241,84,0.04), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .brand h1 {
+    margin: 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .brand h1 span { color: var(--accent); font-style: italic; font-weight: 400; }
+  .brand .tag {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+  .stats {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 2px solid var(--accent);
+    padding-left: 12px;
+  }
+  .stat .k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em; }
+  .stat .v { font-size: 16px; font-weight: 600; color: var(--text); }
+
+  main {
+    flex: 1;
+    padding: 22px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  /* Dropzone */
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 6px;
+    padding: 36px 24px;
+    text-align: center;
+    background: var(--panel);
+    transition: border-color 0.15s ease, background 0.15s ease;
+    cursor: pointer;
+    position: relative;
+  }
+  .dropzone:hover { border-color: var(--accent); background: var(--panel-2); }
+  .dropzone.drag { border-color: var(--accent); background: var(--panel-2); }
+  .dropzone .arrow {
+    font-family: 'Fraunces', serif;
+    font-size: 42px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .dropzone .t1 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    margin: 6px 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .dropzone .t2 { color: var(--muted); font-size: 12px; }
+  .dropzone input { display: none; }
+  .dropzone.compact {
+    padding: 14px 18px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .dropzone.compact .arrow { display: none; }
+  .dropzone.compact .t1 { font-size: 14px; margin: 0; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .dropzone.compact .t2 { font-size: 11px; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .search {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+  .search:focus-within { border-color: var(--accent); }
+  .search input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  .search .glyph { color: var(--muted); font-family: 'Fraunces', serif; }
+
+  button, .btn {
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.12s ease;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #0e0f12; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { background: #e6ff66; color: #0e0f12; }
+  button.ghost { background: transparent; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Table */
+  .table-wrap {
+    flex: 1;
+    overflow: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-height: 200px;
+    position: relative;
+  }
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12.5px;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--panel-2);
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    user-select: none;
+  }
+  thead th .col-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  thead th .col-head:hover { color: var(--accent); }
+  thead th .sort-ind {
+    color: var(--muted);
+    font-size: 10px;
+    font-family: 'Fraunces', serif;
+  }
+  thead th .sort-ind.active { color: var(--accent); }
+  thead th .colnum {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-right: 4px;
+  }
+  thead tr.filters th {
+    top: 39px;
+    background: var(--panel);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  thead tr.filters input {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 11.5px;
+    outline: none;
+  }
+  thead tr.filters input:focus { border-color: var(--accent); }
+  thead tr.filters input::placeholder { color: var(--muted); }
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text);
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td { background: var(--row-zebra); }
+  tbody tr:hover td { background: var(--row-hover); }
+  tbody td.rownum {
+    color: var(--muted);
+    font-size: 11px;
+    width: 50px;
+    text-align: right;
+    padding-right: 14px;
+  }
+  thead th.rownum { width: 50px; text-align: right; padding-right: 14px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; }
+
+  /* Empty / loading */
+  .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
+    color: var(--muted);
+    padding: 60px 20px;
+    text-align: center;
+    gap: 8px;
+  }
+  .empty .big {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 38px;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .empty .small { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; }
+
+  /* Pagination */
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 4px 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .pager .left, .pager .right { display: flex; align-items: center; gap: 8px; }
+  .pager select {
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 11.5px;
+    border-radius: 3px;
+  }
+  .pager .pageinfo { color: var(--text); }
+
+  footer {
+    padding: 12px 28px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer .dot { color: var(--accent); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    font-size: 12px;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.err { border-left-color: var(--danger); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg-2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3f4b; }
+
+  @media (max-width: 640px) {
+    header, main, footer { padding-left: 16px; padding-right: 16px; }
+    .brand h1 { font-size: 22px; }
+    .stat .v { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div style="background:#0a0b0e;border-bottom:1px solid #2a2e38;padding:7px 20px;display:flex;align-items:center;gap:12px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+  <a href="index.html" style="color:#d9f154;text-decoration:none;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;text-transform:uppercase;opacity:0.85;transition:opacity 0.15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">← SOC Toolkit</a>
+  <span style="color:#2a2e38">|</span>
+  <span style="color:#8a8f9c;letter-spacing:1px;text-transform:uppercase;">CSV Filter & Viewer</span>
+</div>
+
+<header>
+  <div class="brand">
+    <h1>csv<span>·</span>filter</h1>
+    <span class="tag">Local · No upload · Runs in your browser</span>
+  </div>
+  <div class="stats" id="stats" style="display:none;">
+    <div class="stat"><span class="k">File</span><span class="v" id="stat-file">—</span></div>
+    <div class="stat"><span class="k">Rows</span><span class="v" id="stat-rows">0</span></div>
+    <div class="stat"><span class="k">Shown</span><span class="v" id="stat-shown">0</span></div>
+    <div class="stat"><span class="k">Cols</span><span class="v" id="stat-cols">0</span></div>
+  </div>
+</header>
+
+<main>
+  <label class="dropzone" id="dropzone">
+    <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" />
+    <div class="arrow">↓</div>
+    <div class="t1">Drop a CSV file here, or click to choose</div>
+    <div class="t2">Supports comma, semicolon, tab &amp; pipe delimiters · Quoted values · UTF-8</div>
+  </label>
+
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <div class="search">
+      <span class="glyph">⌕</span>
+      <input id="global-search" type="text" placeholder="Search across all columns…" autocomplete="off" />
+    </div>
+    <button id="clear-filters" class="ghost" title="Clear all filters">clear filters</button>
+    <button id="export-btn" title="Export filtered rows as CSV">export filtered</button>
+    <button id="reset-btn" class="ghost" title="Load another file">load another</button>
+  </div>
+
+  <div class="table-wrap" id="table-wrap">
+    <div class="empty" id="empty">
+      <div class="big">No data yet.</div>
+      <div class="small">Upload a CSV to begin</div>
+    </div>
+    <table id="table" style="display:none;">
+      <thead>
+        <tr id="header-row"></tr>
+        <tr class="filters" id="filter-row"></tr>
+      </thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+
+  <div class="pager" id="pager" style="display:none;">
+    <div class="left">
+      <span>Rows per page</span>
+      <select id="page-size">
+        <option>50</option>
+        <option selected>100</option>
+        <option>250</option>
+        <option>500</option>
+        <option>1000</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+    <div class="right">
+      <button id="prev-page" class="ghost">‹ prev</button>
+      <span class="pageinfo" id="page-info">—</span>
+      <button id="next-page" class="ghost">next ›</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>processed locally · nothing leaves your machine</span>
+  <span><span class="dot">●</span> ready</span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- State ----------
+  let state = {
+    fileName: '',
+    delimiter: ',',
+    headers: [],
+    rows: [],          // array of arrays
+    columnFilters: [], // string per column
+    globalQuery: '',
+    sortIndex: -1,
+    sortDir: 1,        // 1 asc, -1 desc
+    page: 0,
+    pageSize: 100,
+    filteredIndices: [], // indices into state.rows
+  };
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const dz = $('dropzone');
+  const fileInput = $('file');
+  const tableEl = $('table');
+  const headerRow = $('header-row');
+  const filterRow = $('filter-row');
+  const tbody = $('body');
+  const emptyEl = $('empty');
+  const toolbar = $('toolbar');
+  const pager = $('pager');
+  const stats = $('stats');
+  const pageInfo = $('page-info');
+  const toastEl = $('toast');
+
+  // ---------- CSV Parser (RFC 4180-ish) ----------
+  // Handles: quoted fields, escaped quotes (""), CRLF/LF, configurable delimiter.
+  function parseCSV(text, delimiter) {
+    const out = [];
+    let row = [];
+    let field = '';
+    let i = 0;
+    let inQuotes = false;
+    const len = text.length;
+
+    // Strip BOM
+    if (len > 0 && text.charCodeAt(0) === 0xFEFF) {
+      i = 1;
+    }
+
+    while (i < len) {
+      const c = text[i];
+
+      if (inQuotes) {
+        if (c === '"') {
+          if (i + 1 < len && text[i + 1] === '"') {
+            field += '"';
+            i += 2;
+            continue;
+          }
+          inQuotes = false;
+          i++;
+          continue;
+        }
+        field += c;
+        i++;
+        continue;
+      }
+
+      if (c === '"') {
+        // Begin quoted field only when at start of field
+        if (field.length === 0) {
+          inQuotes = true;
+          i++;
+          continue;
+        }
+        // Stray quote inside unquoted field — keep as literal
+        field += c;
+        i++;
+        continue;
+      }
+
+      if (c === delimiter) {
+        row.push(field);
+        field = '';
+        i++;
+        continue;
+      }
+
+      if (c === '\r') {
+        // Handle CRLF or lone CR
+        row.push(field);
+        out.push(row);
+        row = [];
+        field = '';
+        i++;
+        if (i < len && text[i] === '\n') i++;
+        continue;
+      }
+
+      if (c === '\n') {
+        row.push(field);
+        out.push(row);
+        row = [];
+        field = '';
+        i++;
+        continue;
+      }
+
+      field += c;
+      i++;
+    }
+
+    // Flush last field/row if non-empty
+    if (field.length > 0 || row.length > 0) {
+      row.push(field);
+      out.push(row);
+    }
+
+    // Drop trailing fully-empty rows
+    while (out.length && out[out.length - 1].every(f => f === '')) out.pop();
+
+    return out;
+  }
+
+  function detectDelimiter(sample) {
+    const candidates = [',', ';', '\t', '|'];
+    // Test first ~10 non-empty lines
+    const lines = sample.split(/\r?\n/).filter(l => l.length).slice(0, 10);
+    let best = ',';
+    let bestScore = -Infinity;
+    for (const d of candidates) {
+      // Count occurrences per line, then check consistency
+      const counts = lines.map(line => {
+        // crude split honoring quotes
+        let inQ = false, c = 0;
+        for (let k = 0; k < line.length; k++) {
+          const ch = line[k];
+          if (ch === '"') inQ = !inQ;
+          else if (!inQ && ch === d) c++;
+        }
+        return c;
+      });
+      if (!counts.length) continue;
+      const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+      if (avg < 1) continue;
+      const variance = counts.reduce((a, b) => a + (b - avg) * (b - avg), 0) / counts.length;
+      // Higher avg, lower variance is better
+      const score = avg - variance * 2;
+      if (score > bestScore) { bestScore = score; best = d; }
+    }
+    return best;
+  }
+
+  function csvEscape(value, delimiter) {
+    const s = value == null ? '' : String(value);
+    if (s.includes('"') || s.includes(delimiter) || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function rowsToCSV(headers, rows, delimiter) {
+    const d = delimiter || ',';
+    const lines = [];
+    lines.push(headers.map(h => csvEscape(h, d)).join(d));
+    for (const r of rows) {
+      lines.push(r.map(v => csvEscape(v, d)).join(d));
+    }
+    return lines.join('\r\n');
+  }
+
+  // ---------- File loading ----------
+  function readFile(file) {
+    if (!file) return;
+    if (file.size > 200 * 1024 * 1024) {
+      toast('File is larger than 200 MB. Browser performance may suffer.', 'err');
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const sample = text.slice(0, 64 * 1024);
+        const delim = detectDelimiter(sample);
+        const parsed = parseCSV(text, delim);
+        if (!parsed.length) {
+          toast('File parsed but contains no rows.', 'err');
+          return;
+        }
+        const headers = parsed[0].map((h, i) => h.trim() === '' ? `col_${i + 1}` : h);
+        const rows = parsed.slice(1).map(r => {
+          if (r.length < headers.length) {
+            const padded = r.slice();
+            while (padded.length < headers.length) padded.push('');
+            return padded;
+          }
+          if (r.length > headers.length) return r.slice(0, headers.length);
+          return r;
+        });
+
+        state.fileName = file.name;
+        state.delimiter = delim;
+        state.headers = headers;
+        state.rows = rows;
+        state.columnFilters = headers.map(() => '');
+        state.globalQuery = '';
+        state.sortIndex = -1;
+        state.sortDir = 1;
+        state.page = 0;
+
+        buildHeader();
+        applyFiltersAndSort();
+        revealUI();
+        toast(`Loaded ${rows.length.toLocaleString()} rows · delimiter "${delim === '\t' ? '\\t' : delim}"`);
+      } catch (err) {
+        console.error(err);
+        toast('Could not parse this file as CSV.', 'err');
+      }
+    };
+    reader.onerror = () => toast('Could not read this file.', 'err');
+    reader.readAsText(file);
+  }
+
+  // ---------- UI build ----------
+  function revealUI() {
+    emptyEl.style.display = 'none';
+    tableEl.style.display = '';
+    toolbar.style.display = '';
+    pager.style.display = '';
+    stats.style.display = '';
+    dz.classList.add('compact');
+    dz.querySelector('.t1').textContent = `Loaded: ${state.fileName}`;
+    dz.querySelector('.t2').textContent = 'Click to load a different file';
+  }
+
+  function buildHeader() {
+    headerRow.innerHTML = '';
+    filterRow.innerHTML = '';
+
+    const thRow = document.createElement('th');
+    thRow.className = 'rownum';
+    thRow.textContent = '#';
+    headerRow.appendChild(thRow);
+
+    const thRowF = document.createElement('th');
+    thRowF.className = 'rownum';
+    filterRow.appendChild(thRowF);
+
+    state.headers.forEach((h, idx) => {
+      const th = document.createElement('th');
+      const wrap = document.createElement('div');
+      wrap.className = 'col-head';
+      const num = document.createElement('span');
+      num.className = 'colnum';
+      num.textContent = String(idx + 1).padStart(2, '0');
+      const label = document.createElement('span');
+      label.textContent = h;
+      const ind = document.createElement('span');
+      ind.className = 'sort-ind';
+      ind.textContent = '↕';
+      wrap.appendChild(num);
+      wrap.appendChild(label);
+      wrap.appendChild(ind);
+      wrap.addEventListener('click', () => {
+        if (state.sortIndex === idx) state.sortDir = -state.sortDir;
+        else { state.sortIndex = idx; state.sortDir = 1; }
+        state.page = 0;
+        applyFiltersAndSort();
+      });
+      th.appendChild(wrap);
+      headerRow.appendChild(th);
+
+      const thF = document.createElement('th');
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = 'filter…';
+      inp.addEventListener('input', () => {
+        state.columnFilters[idx] = inp.value;
+        state.page = 0;
+        applyFiltersAndSort();
+      });
+      thF.appendChild(inp);
+      filterRow.appendChild(thF);
+    });
+  }
+
+  function updateSortIndicators() {
+    const heads = headerRow.querySelectorAll('.col-head');
+    heads.forEach((wrap, idx) => {
+      const ind = wrap.querySelector('.sort-ind');
+      if (idx === state.sortIndex) {
+        ind.textContent = state.sortDir === 1 ? '↑' : '↓';
+        ind.classList.add('active');
+      } else {
+        ind.textContent = '↕';
+        ind.classList.remove('active');
+      }
+    });
+  }
+
+  // ---------- Filter / Sort / Render ----------
+  function compileFilter(query) {
+    // Operators supported: >, >=, <, <=, =, !=, plain text contains (case-insensitive)
+    // Range: 10..20  (inclusive)
+    // Multiple terms separated by spaces: all must match (AND)
+    const q = String(query || '').trim();
+    if (!q) return null;
+
+    const numFromCell = (v) => {
+      if (v == null) return NaN;
+      const s = String(v).trim().replace(/[,\s]/g, c => c === ',' ? '.' : '');
+      const n = parseFloat(s);
+      return n;
+    };
+
+    // Range
+    const rangeMatch = q.match(/^(-?\d+(?:[.,]\d+)?)\.\.(-?\d+(?:[.,]\d+)?)$/);
+    if (rangeMatch) {
+      const lo = parseFloat(rangeMatch[1].replace(',', '.'));
+      const hi = parseFloat(rangeMatch[2].replace(',', '.'));
+      return (cell) => {
+        const n = numFromCell(cell);
+        return !isNaN(n) && n >= lo && n <= hi;
+      };
+    }
+
+    // Operator
+    const opMatch = q.match(/^(>=|<=|!=|>|<|=)\s*(.+)$/);
+    if (opMatch) {
+      const op = opMatch[1];
+      const val = opMatch[2].trim();
+      const asNum = parseFloat(val.replace(',', '.'));
+      const isNum = !isNaN(asNum) && /^-?\d+(?:[.,]\d+)?$/.test(val);
+      return (cell) => {
+        if (isNum) {
+          const n = numFromCell(cell);
+          if (isNaN(n)) return false;
+          switch (op) {
+            case '>': return n > asNum;
+            case '<': return n < asNum;
+            case '>=': return n >= asNum;
+            case '<=': return n <= asNum;
+            case '=': return n === asNum;
+            case '!=': return n !== asNum;
+          }
+        }
+        const cellL = String(cell == null ? '' : cell).toLowerCase();
+        const valL = val.toLowerCase();
+        switch (op) {
+          case '=': return cellL === valL;
+          case '!=': return cellL !== valL;
+          default: return false;
+        }
+      };
+    }
+
+    // Multi-term contains
+    const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    return (cell) => {
+      const s = String(cell == null ? '' : cell).toLowerCase();
+      return terms.every(t => s.includes(t));
+    };
+  }
+
+  function compileGlobal(query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return null;
+    const terms = q.split(/\s+/).filter(Boolean);
+    return (row) => {
+      // Join once per row for speed
+      const s = row.join('\u0001').toLowerCase();
+      return terms.every(t => s.includes(t));
+    };
+  }
+
+  function applyFiltersAndSort() {
+    // Compile filters
+    const colFns = state.columnFilters.map(q => compileFilter(q));
+    const globalFn = compileGlobal(state.globalQuery);
+
+    const indices = [];
+    for (let i = 0; i < state.rows.length; i++) {
+      const r = state.rows[i];
+      let ok = true;
+      for (let c = 0; c < colFns.length; c++) {
+        const fn = colFns[c];
+        if (fn && !fn(r[c])) { ok = false; break; }
+      }
+      if (ok && globalFn && !globalFn(r)) ok = false;
+      if (ok) indices.push(i);
+    }
+
+    // Sort
+    if (state.sortIndex >= 0) {
+      const idx = state.sortIndex;
+      const dir = state.sortDir;
+      const numRe = /^-?\d+(?:[.,]\d+)?$/;
+      // Decide numeric if a reasonable share of values are numeric
+      let numericCount = 0;
+      const sampleSize = Math.min(indices.length, 200);
+      for (let i = 0; i < sampleSize; i++) {
+        const v = state.rows[indices[i]][idx];
+        if (v != null && numRe.test(String(v).trim())) numericCount++;
+      }
+      const isNumericCol = sampleSize > 0 && numericCount / sampleSize > 0.6;
+
+      indices.sort((a, b) => {
+        const va = state.rows[a][idx];
+        const vb = state.rows[b][idx];
+        if (isNumericCol) {
+          const na = parseFloat(String(va).replace(',', '.'));
+          const nb = parseFloat(String(vb).replace(',', '.'));
+          const aNaN = isNaN(na), bNaN = isNaN(nb);
+          if (aNaN && bNaN) return 0;
+          if (aNaN) return 1;
+          if (bNaN) return -1;
+          return (na - nb) * dir;
+        }
+        const sa = (va == null ? '' : String(va)).toLowerCase();
+        const sb = (vb == null ? '' : String(vb)).toLowerCase();
+        if (sa < sb) return -1 * dir;
+        if (sa > sb) return 1 * dir;
+        return 0;
+      });
+    }
+
+    state.filteredIndices = indices;
+    updateSortIndicators();
+    render();
+  }
+
+  function render() {
+    const total = state.filteredIndices.length;
+    const ps = state.pageSize;
+    let start, end;
+    if (ps === 'all') { start = 0; end = total; }
+    else {
+      const maxPage = Math.max(0, Math.ceil(total / ps) - 1);
+      if (state.page > maxPage) state.page = maxPage;
+      start = state.page * ps;
+      end = Math.min(total, start + ps);
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) {
+      const ri = state.filteredIndices[i];
+      const r = state.rows[ri];
+      const tr = document.createElement('tr');
+
+      const tdN = document.createElement('td');
+      tdN.className = 'rownum';
+      tdN.textContent = (ri + 1).toString();
+      tr.appendChild(tdN);
+
+      for (let c = 0; c < state.headers.length; c++) {
+        const td = document.createElement('td');
+        const v = r[c];
+        td.textContent = v == null ? '' : v;
+        td.title = v == null ? '' : v;
+        tr.appendChild(td);
+      }
+      frag.appendChild(tr);
+    }
+    tbody.innerHTML = '';
+    tbody.appendChild(frag);
+
+    // Stats
+    $('stat-file').textContent = state.fileName || '—';
+    $('stat-rows').textContent = state.rows.length.toLocaleString();
+    $('stat-shown').textContent = total.toLocaleString();
+    $('stat-cols').textContent = state.headers.length.toLocaleString();
+
+    // Pager
+    if (ps === 'all' || total === 0) {
+      pageInfo.textContent = total === 0 ? 'no matches' : `1–${total} of ${total}`;
+    } else {
+      const pageCount = Math.max(1, Math.ceil(total / ps));
+      pageInfo.textContent = `${start + 1}–${end} of ${total}  ·  page ${state.page + 1}/${pageCount}`;
+    }
+    $('prev-page').disabled = state.page <= 0 || ps === 'all';
+    $('next-page').disabled = ps === 'all' || end >= total;
+  }
+
+  // ---------- Events ----------
+  dz.addEventListener('click', (e) => {
+    // The label wraps input; clicking the input itself shouldn't double-fire
+    if (e.target.tagName === 'INPUT') return;
+  });
+  fileInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) readFile(f);
+    e.target.value = '';
+  });
+  ['dragenter', 'dragover'].forEach(ev => {
+    dz.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag'); });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    dz.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('drag'); });
+  });
+  dz.addEventListener('drop', (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+
+  $('global-search').addEventListener('input', (e) => {
+    state.globalQuery = e.target.value;
+    state.page = 0;
+    applyFiltersAndSort();
+  });
+
+  $('clear-filters').addEventListener('click', () => {
+    state.columnFilters = state.headers.map(() => '');
+    state.globalQuery = '';
+    $('global-search').value = '';
+    filterRow.querySelectorAll('input').forEach(inp => inp.value = '');
+    state.page = 0;
+    applyFiltersAndSort();
+  });
+
+  $('export-btn').addEventListener('click', () => {
+    if (!state.filteredIndices.length) {
+      toast('Nothing to export.', 'err');
+      return;
+    }
+    const rows = state.filteredIndices.map(i => state.rows[i]);
+    const csv = rowsToCSV(state.headers, rows, state.delimiter);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const base = state.fileName.replace(/\.[^.]+$/, '');
+    a.href = url;
+    a.download = `${base || 'data'}.filtered.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(`Exported ${rows.length.toLocaleString()} rows`);
+  });
+
+  $('reset-btn').addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  $('page-size').addEventListener('change', (e) => {
+    const v = e.target.value;
+    state.pageSize = v === 'all' ? 'all' : parseInt(v, 10);
+    state.page = 0;
+    render();
+  });
+  $('prev-page').addEventListener('click', () => {
+    if (state.page > 0) { state.page--; render(); }
+  });
+  $('next-page').addEventListener('click', () => {
+    const total = state.filteredIndices.length;
+    const ps = state.pageSize === 'all' ? total : state.pageSize;
+    if ((state.page + 1) * ps < total) { state.page++; render(); }
+  });
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function toast(msg, kind) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('err', kind === 'err');
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+  }
+})();
+</script>
+
+</body>
+</html>
