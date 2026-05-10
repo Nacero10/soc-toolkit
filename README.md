@@ -1,68 +1,87 @@
 # 🛡 SOC Toolkit
 
-A collection of **browser-based, offline-first** security analyst tools.  
-Drop the folder anywhere, open `index.html`, done. No install, no server, no data ever leaves your machine.
+Browser-based security tools. Open `index.html` — no install, no server, nothing leaves your machine.
 
 ---
 
 ## Tools
 
-### 📡 Wazuh Log Analyzer [`wazuh-log-viewer.html`]
-Visualize and investigate **Wazuh SIEM alert exports** (Elasticsearch JSON format).
+### 📡 Wazuh Log Analyzer
+Drop a Wazuh JSON export (Elasticsearch format) and get instant charts + a filterable, sortable event table with 21 columns including `Image` and `CommandLine`.
 
-**Features**
-- Drag & drop or paste raw JSON (`[{"_id":..., "_source":...}]`)
-- 5 live charts: event timeline, alerts by agent/user, top processes, rule level distribution
-- 21 toggleable columns (timestamp, system time, agent IP, domain, logon ID, image, commandline, and more)
-- Drag column headers to resize them
-- Click any cell to view its full untruncated content + copy to clipboard
-- Filters: agent, user, rule level, event ID, process name (text search), time range
-- Sortable table
-
-**Compatible format:** Elasticsearch bulk export — `[{"_id": "...", "_source": {...}}, ...]`
-
----
-
-### 📊 CSV Filter & Viewer [`csv-filter.html`]
-Load and interactively filter **any CSV/TSV/pipe-delimited file**.
-
-**Features**
-- Auto-detects delimiter (`,` `;` `\t` `|`), quoted fields with escaped `""`, BOM, CRLF/LF
-- Per-column filter inputs and a global search box (multi-term AND)
-- Click any column header to sort (numeric vs text auto-detected)
-- Pagination: 50 → 1000 rows, or All
-- Export currently filtered rows back to CSV
-
-**Filter syntax**
-| Expression | Meaning |
-|---|---|
-| `paris` | contains "paris" (case-insensitive) |
-| `paris france` | contains both terms |
-| `>100` / `<=50` | numeric comparison |
-| `=foo` / `!=bar` | equality / not-equal |
-| `10..20` | numeric range (inclusive) |
-
----
-
-## Usage
-
-### GitHub Pages (recommended)
-```bash
-# 1. Clone your repo
-git clone https://github.com/YOUR_USERNAME/soc-toolkit.git
-cd soc-toolkit
-
-# 2. Open locally
-open index.html      # macOS
-xdg-open index.html  # Linux
-start index.html     # Windows
+**Example log (Event 4688 — process creation):**
+```json
+{
+  "agent": { "name": "DC01", "ip": "10.0.0.5" },
+  "rule": { "level": 15, "description": "Mimikatz detected." },
+  "data": { "win": { "eventdata": {
+    "subjectUserName": "svc_backup",
+    "newProcessName": "C:\\Temp\\m64.exe",
+    "commandLine": "m64.exe sekurlsa::logonpasswords",
+    "parentProcessName": "C:\\Windows\\System32\\cmd.exe"
+  }}}
+}
 ```
 
-Then go to **Settings → Pages → Branch: main → / (root)** to publish.  
-Live URL: `https://YOUR_USERNAME.github.io/soc-toolkit/`
+Filter by agent, user, rule level, event ID, process name, or time range. Click any cell to see its full value.
+
+**Export from Wazuh Or use Just a Json file:**
+```bash
+curl -k -u admin:admin \
+  "https://WAZUH:9200/wazuh-alerts-4.x-*/_search?size=5000" \
+  -d '{"query":{"range":{"timestamp":{"gte":"now-24h"}}}}' \
+  | jq '[.hits.hits[]]' > alerts.json
+```
 
 ---
 
-## Privacy
-All file processing happens in your browser using vanilla JavaScript.  
-No data is sent to any server. No analytics. No dependencies to install.
+### 📊 CSV Filter & Viewer
+Load any CSV/TSV file, filter per column, sort, and export filtered results.
+
+**Filter syntax:**
+
+| Expression | Meaning |
+|---|---|
+| `powershell` | contains "powershell" (case-insensitive) |
+| `powershell cmd` | process is PowerShell AND parent is cmd |
+| `>102400` | file size over 100 KB |
+| `=4688` | event ID exactly 4688 |
+| `!=SYSTEM` | exclude SYSTEM account |
+| `2025-10-09..2025-10-10` | activity within incident window |
+
+#### MFT ($MFT) — extract with MFTECmd:
+```powershell
+MFTECmd.exe -f "C:\$MFT" --csv C:\out --csvf mft.csv
+```
+Useful filters: `Extension = .exe` + `IsDeleted = True` (deleted executables) · `HasAds = True` (hidden payloads) · compare `Created0x10` vs `Created0x30` to spot timestomping.
+
+#### UsnJrnl ($J) — extract with MFTECmd:
+```powershell
+MFTECmd.exe -f "C:\$Extend\$UsnJrnl:$J" --csv C:\out --csvf usnjrnl.csv
+```
+Useful filters: `UpdateReasons = FileCreate` + `Extension = .exe` · `UpdateReasons = RenameNewName` · `FileAttributes = Hidden`. Cross-reference `EntryNumber` with MFT for full file metadata.
+
+Also works with: Hayabusa, Chainsaw, Zeek, Volatility, EDR exports, PECmd, LECmd, AppCompatCache.
+
+---
+
+## Deploy
+
+```bash
+git init && git add . && git commit -m "init"
+git remote add origin https://github.com/YOUR_USERNAME/soc-toolkit.git
+git push -u origin main
+```
+Enable **Settings → Pages → main → / (root)** for a live URL.
+
+---
+
+```
+soc-toolkit/
+├── index.html
+├── wazuh-log-viewer.html
+├── csv-filter.html
+└── README.md
+```
+
+> All processing is local. Safe on air-gapped machines.
