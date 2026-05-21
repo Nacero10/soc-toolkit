@@ -254,6 +254,12 @@
   }
   thead tr.filters input:focus { border-color: var(--accent); }
   thead tr.filters input::placeholder { color: var(--muted); }
+  thead tr.filters input.regex-ok { border-color: var(--ok); color: var(--ok); }
+  thead tr.filters input.regex-bad { border-color: var(--danger); color: var(--danger); }
+  .search input.regex-ok { color: var(--ok); }
+  .search input.regex-bad { color: var(--danger); }
+  .search:has(input.regex-ok) { border-color: var(--ok); }
+  .search:has(input.regex-bad) { border-color: var(--danger); }
   tbody td {
     padding: 8px 12px;
     border-bottom: 1px solid var(--border-soft);
@@ -503,6 +509,16 @@
     word-break: break-all;
     line-height: 1.65;
   }
+  .cell-modal-content.json-mode {
+    white-space: pre;
+    word-break: normal;
+  }
+  .cell-modal-content .j-key   { color: var(--accent); }
+  .cell-modal-content .j-str   { color: #fcd34d; }
+  .cell-modal-content .j-num   { color: #7dd3fc; }
+  .cell-modal-content .j-bool  { color: #f59e0b; font-weight: 700; }
+  .cell-modal-content .j-null  { color: var(--muted); font-style: italic; }
+  .cell-modal-content .j-punct { color: var(--muted); }
   .cell-modal-footer {
     padding: 10px 18px;
     border-top: 1px solid var(--border);
@@ -535,6 +551,62 @@
 
   /* Hidden column (col + cells) */
   .col-hidden { display: none !important; }
+
+  /* In-page find bar (Chrome-style) */
+  .find-bar {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 250;
+    background: var(--panel-2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    font-size: 12px;
+  }
+  .find-bar.open { display: flex; }
+  .find-bar input {
+    width: 200px;
+    padding: 5px 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 3px;
+    outline: none;
+  }
+  .find-bar input:focus { border-color: var(--accent); }
+  .find-bar input.no-match { border-color: var(--danger); background: rgba(255,107,107,0.08); }
+  .find-bar .find-count {
+    font-size: 10.5px;
+    color: var(--muted);
+    min-width: 56px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .find-bar button {
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    min-width: 26px;
+  }
+  .find-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .find-bar button.close { color: var(--muted); }
+  .find-bar button.close:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* Find match highlights inside table */
+  tbody td.find-hit { background: rgba(217,241,84,0.18); }
+  tbody td.find-current { background: rgba(255,176,32,0.45) !important; outline: 1px solid #ffb020; }
 
   /* Active filter indicator on header */
   thead th.has-filter { border-bottom: 2px solid var(--accent); }
@@ -769,7 +841,7 @@
   <div class="toolbar" id="toolbar" style="display:none;">
     <div class="search">
       <span class="glyph">⌕</span>
-      <input id="global-search" type="text" placeholder="Search across all columns…" autocomplete="off" />
+      <input id="global-search" type="text" placeholder="Search all columns… (or regex: /pattern/i)" autocomplete="off" />
     </div>
     <button id="columns-btn" class="ghost" title="Show / hide / mask columns">columns <span id="col-summary" style="color:var(--accent);margin-left:4px;"></span></button>
     <button id="clear-filters" class="ghost" title="Clear all filters">clear filters</button>
@@ -829,6 +901,15 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- In-page find bar (Ctrl+F) -->
+<div class="find-bar" id="find-bar">
+  <input id="find-input" type="text" placeholder="Find in filtered rows…" autocomplete="off" />
+  <span class="find-count" id="find-count"></span>
+  <button id="find-prev" title="Previous (Shift+Enter)">↑</button>
+  <button id="find-next" title="Next (Enter)">↓</button>
+  <button id="find-close" class="close" title="Close (Esc)">×</button>
+</div>
+
 <!-- Cell content viewer modal -->
 <div class="cell-modal" id="cell-modal">
   <div class="cell-modal-backdrop" id="cell-modal-backdrop"></div>
@@ -841,6 +922,7 @@
     <div class="cell-modal-content" id="cell-modal-content"></div>
     <div class="cell-modal-footer">
       <div class="nav-info">Arrow keys: ← → cells · ↑ ↓ rows · Esc close</div>
+      <button class="ghost" id="cell-modal-json" style="display:none">{ } Beautify JSON</button>
       <button class="ghost" id="cell-modal-copy">⎘ Copy</button>
     </div>
   </div>
@@ -1170,8 +1252,13 @@
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.placeholder = 'filter…';
+      inp.title = 'Text, >100, 10..20, =exact, !=x — or regex: /pattern/i';
       inp.addEventListener('input', () => {
         state.columnFilters[idx] = inp.value;
+        const qv = inp.value.trim();
+        const isRe = /^\/.*\/[gimsuy]*$/.test(qv);
+        inp.classList.toggle('regex-bad', isInvalidRegexFilter(inp.value));
+        inp.classList.toggle('regex-ok', isRe && !isInvalidRegexFilter(qv));
         if (inp.value) { inp.classList.add('has-value'); th.classList.add('has-filter'); }
         else { inp.classList.remove('has-value'); refreshHeaderFilterState(idx); }
         state.page = 0;
@@ -1585,12 +1672,40 @@
   }
 
   // ---------- Filter / Sort / Render ----------
+  // Returns a compiled RegExp from a /pattern/flags string, or null if the
+  // query isn't in regex form. Throws if the pattern is malformed.
+  function parseRegexQuery(q) {
+    const m = q.match(/^\/((?:\\.|[^\\\/])*)\/([gimsuy]*)$/);
+    if (!m) return null;
+    // Strip 'g' and 'y' — they make .test() stateful (lastIndex advances)
+    // and would corrupt results when the same regex is reused per cell/row.
+    const flags = m[2].replace(/[gy]/g, '');
+    return new RegExp(m[1], flags);
+  }
+
+  // Lightweight validity check used only for an input's visual cue.
+  function isInvalidRegexFilter(query) {
+    const q = String(query || '').trim();
+    if (!/^\/.*\/[gimsuy]*$/.test(q)) return false; // not regex form → not "invalid"
+    try { parseRegexQuery(q); return false; }
+    catch (e) { return true; }
+  }
+
   function compileFilter(query) {
     // Operators supported: >, >=, <, <=, =, !=, plain text contains (case-insensitive)
+    // Regex:  /pattern/   or  /pattern/i   (any JS flags: i m s u)
     // Range: 10..20  (inclusive)
     // Multiple terms separated by spaces: all must match (AND)
     const q = String(query || '').trim();
     if (!q) return null;
+
+    // Regex mode — takes priority when wrapped in slashes
+    try {
+      const re = parseRegexQuery(q);
+      if (re) return (cell) => re.test(String(cell == null ? '' : cell));
+    } catch (e) {
+      return () => false; // malformed pattern → match nothing (input flagged red)
+    }
 
     const numFromCell = (v) => {
       if (v == null) return NaN;
@@ -1649,9 +1764,18 @@
   }
 
   function compileGlobal(query) {
-    const q = String(query || '').trim().toLowerCase();
-    if (!q) return null;
-    const terms = q.split(/\s+/).filter(Boolean);
+    const raw = String(query || '').trim();
+    if (!raw) return null;
+
+    // Regex mode — applied to the whole joined row
+    try {
+      const re = parseRegexQuery(raw);
+      if (re) return (row) => re.test(row.join('\u0001'));
+    } catch (e) {
+      return () => false; // malformed pattern → match nothing (input flagged red)
+    }
+
+    const terms = raw.toLowerCase().split(/\s+/).filter(Boolean);
     return (row) => {
       // Join once per row for speed
       const s = row.join('\u0001').toLowerCase();
@@ -1875,6 +1999,10 @@
 
   $('global-search').addEventListener('input', (e) => {
     state.globalQuery = e.target.value;
+    const gv = e.target.value.trim();
+    const isRe = /^\/.*\/[gimsuy]*$/.test(gv);
+    e.target.classList.toggle('regex-bad', isInvalidRegexFilter(e.target.value));
+    e.target.classList.toggle('regex-ok', isRe && !isInvalidRegexFilter(gv));
     state.page = 0;
     applyFiltersAndSort();
   });
@@ -1884,7 +2012,8 @@
     state.globalQuery = '';
     state.valueFilters = {};
     $('global-search').value = '';
-    filterRow.querySelectorAll('input').forEach(inp => { inp.value = ''; inp.classList.remove('has-value'); });
+    $('global-search').classList.remove('regex-ok', 'regex-bad');
+    filterRow.querySelectorAll('input').forEach(inp => { inp.value = ''; inp.classList.remove('has-value', 'regex-ok', 'regex-bad'); });
     headerRow.querySelectorAll('th').forEach(th => th.classList.remove('has-filter'));
     headerRow.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     state.page = 0;
@@ -1949,6 +2078,52 @@
   const cellModal = $('cell-modal');
   let modalRow = -1;
   let modalCol = -1;
+  let modalRawText = '';
+  let modalIsJson = false;
+  let modalJsonShown = false;   // current display mode (true = pretty JSON, false = raw)
+  let modalParsedJson = null;
+
+  function tryParseJSON(text) {
+    if (!text) return null;
+    const trimmed = text.trim();
+    // Quick check: must start with { or [ to even try (avoids parsing numbers, "true", etc.)
+    if (!(trimmed.startsWith('{') && trimmed.endsWith('}')) &&
+        !(trimmed.startsWith('[') && trimmed.endsWith(']'))) return null;
+    try { return JSON.parse(trimmed); } catch { return null; }
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function highlightJSON(obj) {
+    const pretty = JSON.stringify(obj, null, 2);
+    return escapeHTML(pretty).replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      (match) => {
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) return '<span class="j-key">' + match.replace(/:$/, '') + '</span><span class="j-punct">:</span>';
+          return '<span class="j-str">' + match + '</span>';
+        }
+        if (/true|false/.test(match)) return '<span class="j-bool">' + match + '</span>';
+        if (/null/.test(match)) return '<span class="j-null">' + match + '</span>';
+        return '<span class="j-num">' + match + '</span>';
+      }
+    );
+  }
+
+  function renderModalContent() {
+    const contentEl = $('cell-modal-content');
+    if (modalJsonShown && modalParsedJson !== null) {
+      contentEl.classList.add('json-mode');
+      contentEl.innerHTML = highlightJSON(modalParsedJson);
+      $('cell-modal-json').textContent = '⤺ Show raw';
+    } else {
+      contentEl.classList.remove('json-mode');
+      contentEl.textContent = modalRawText || '(empty)';
+      $('cell-modal-json').textContent = '{ } Beautify JSON';
+    }
+  }
 
   function openCellModal(rowIdx, colIdx) {
     const r = state.rows[rowIdx];
@@ -1956,19 +2131,37 @@
     modalRow = rowIdx;
     modalCol = colIdx;
     const value = r[colIdx];
-    const text = value == null ? '' : String(value);
+    modalRawText = value == null ? '' : String(value);
+    modalParsedJson = tryParseJSON(modalRawText);
+    modalIsJson = modalParsedJson !== null;
+    modalJsonShown = modalIsJson;  // auto-show beautified if it parses as JSON
+
     $('cell-modal-col').textContent = state.headers[colIdx] || `Column ${colIdx + 1}`;
-    $('cell-modal-meta').textContent = `row ${rowIdx + 1} · ${text.length.toLocaleString()} chars`;
-    $('cell-modal-content').textContent = text || '(empty)';
+    const meta = `row ${rowIdx + 1} · ${modalRawText.length.toLocaleString()} chars` + (modalIsJson ? ' · JSON' : '');
+    $('cell-modal-meta').textContent = meta;
+    $('cell-modal-json').style.display = modalIsJson ? '' : 'none';
+
+    renderModalContent();
     cellModal.classList.add('open');
   }
 
-  function closeCellModal() { cellModal.classList.remove('open'); modalRow = -1; modalCol = -1; }
+  function closeCellModal() {
+    cellModal.classList.remove('open');
+    modalRow = -1; modalCol = -1;
+    modalRawText = ''; modalParsedJson = null; modalIsJson = false; modalJsonShown = false;
+  }
 
   $('cell-modal-backdrop').addEventListener('click', closeCellModal);
   $('cell-modal-close').addEventListener('click', closeCellModal);
+  $('cell-modal-json').addEventListener('click', () => {
+    modalJsonShown = !modalJsonShown;
+    renderModalContent();
+  });
   $('cell-modal-copy').addEventListener('click', () => {
-    const txt = $('cell-modal-content').textContent;
+    // Copy in current display mode
+    const txt = modalJsonShown && modalParsedJson !== null
+      ? JSON.stringify(modalParsedJson, null, 2)
+      : modalRawText;
     navigator.clipboard.writeText(txt).then(() => {
       const btn = $('cell-modal-copy');
       const original = btn.textContent;
@@ -2008,6 +2201,167 @@
       openCellModal(fi[p], modalCol);
     }
   });
+
+  // ---------- Ctrl+F → in-page find bar ----------
+  // Searches across ALL filtered rows (not just DOM-rendered ones).
+  const findBar = $('find-bar');
+  const findInput = $('find-input');
+  const findCount = $('find-count');
+  let findMatches = [];        // [{rowIdxInFiltered, rowIdx, colIdx}]
+  let findCurrentIdx = -1;
+  let findTerm = '';
+  let findDebounce = null;
+  const FIND_MAX_MATCHES = 5000;
+
+  function openFindBar() {
+    if (!state.rows.length) return;
+    findBar.classList.add('open');
+    findInput.focus();
+    findInput.select();
+  }
+
+  function closeFindBar() {
+    findBar.classList.remove('open');
+    findTerm = '';
+    findMatches = [];
+    findCurrentIdx = -1;
+    findInput.value = '';
+    findInput.classList.remove('no-match');
+    findCount.textContent = '';
+    clearFindHighlights();
+  }
+
+  function clearFindHighlights() {
+    tbody.querySelectorAll('td.find-hit, td.find-current').forEach(td => {
+      td.classList.remove('find-hit', 'find-current');
+    });
+  }
+
+  function performFind(term) {
+    findTerm = (term || '').toLowerCase();
+    findMatches = [];
+    findCurrentIdx = -1;
+    if (!findTerm) {
+      findInput.classList.remove('no-match');
+      findCount.textContent = '';
+      clearFindHighlights();
+      return;
+    }
+    const order = state.colOrder.length ? state.colOrder : state.headers.map((_, i) => i);
+    const visibleCols = order.filter(c => !state.hiddenCols.has(c) && !state.maskedCols.has(c));
+    let truncated = false;
+    outer: for (let i = 0; i < state.filteredIndices.length; i++) {
+      const ri = state.filteredIndices[i];
+      const row = state.rows[ri];
+      for (const c of visibleCols) {
+        const v = row[c];
+        if (v != null && String(v).toLowerCase().includes(findTerm)) {
+          findMatches.push({ rowIdxInFiltered: i, rowIdx: ri, colIdx: c });
+          if (findMatches.length >= FIND_MAX_MATCHES) { truncated = true; break outer; }
+        }
+      }
+    }
+    if (findMatches.length === 0) {
+      findInput.classList.add('no-match');
+      findCount.textContent = '0 matches';
+      clearFindHighlights();
+    } else {
+      findInput.classList.remove('no-match');
+      findCurrentIdx = 0;
+      findCount.textContent = `1 / ${findMatches.length.toLocaleString()}${truncated ? '+' : ''}`;
+      scrollToCurrentMatch();
+    }
+  }
+
+  function scrollToCurrentMatch() {
+    const m = findMatches[findCurrentIdx];
+    if (!m) return;
+    // Compute scroll position to bring this row into view
+    const targetTop = m.rowIdxInFiltered * ROW_HEIGHT;
+    const viewportH = tableWrap.clientHeight;
+    const currentScroll = tableWrap.scrollTop;
+    // Only scroll if outside the comfortable viewport (with 50px margin)
+    if (targetTop < currentScroll + 40 || targetTop > currentScroll + viewportH - 80) {
+      tableWrap.scrollTop = Math.max(0, targetTop - viewportH / 2 + ROW_HEIGHT);
+    }
+    // After scroll triggers re-render, apply highlights
+    requestAnimationFrame(() => {
+      requestAnimationFrame(applyFindHighlights);
+    });
+  }
+
+  function applyFindHighlights() {
+    clearFindHighlights();
+    if (!findTerm) return;
+    for (let i = 0; i < findMatches.length; i++) {
+      const m = findMatches[i];
+      const td = tbody.querySelector(`td[data-row="${m.rowIdx}"][data-col="${m.colIdx}"]`);
+      if (td) {
+        td.classList.add('find-hit');
+        if (i === findCurrentIdx) td.classList.add('find-current');
+      }
+    }
+    if (findCurrentIdx >= 0) {
+      findCount.textContent = `${findCurrentIdx + 1} / ${findMatches.length.toLocaleString()}`;
+    }
+  }
+
+  function findNext() {
+    if (!findMatches.length) return;
+    findCurrentIdx = (findCurrentIdx + 1) % findMatches.length;
+    scrollToCurrentMatch();
+  }
+  function findPrev() {
+    if (!findMatches.length) return;
+    findCurrentIdx = (findCurrentIdx - 1 + findMatches.length) % findMatches.length;
+    scrollToCurrentMatch();
+  }
+
+  // Re-apply highlights after every virtual-scroll render
+  const originalRender = render;
+  // (We can't easily wrap render() since it's defined earlier; use a tableWrap scroll listener instead)
+  tableWrap.addEventListener('scroll', () => {
+    if (findBar.classList.contains('open') && findTerm) {
+      requestAnimationFrame(applyFindHighlights);
+    }
+  }, { passive: true });
+
+  findInput.addEventListener('input', (e) => {
+    clearTimeout(findDebounce);
+    findDebounce = setTimeout(() => performFind(e.target.value), 80);
+  });
+  findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) findPrev(); else findNext();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFindBar();
+    }
+  });
+  $('find-next').addEventListener('click', findNext);
+  $('find-prev').addEventListener('click', findPrev);
+  $('find-close').addEventListener('click', closeFindBar);
+
+  // Intercept Ctrl/Cmd + F globally
+  document.addEventListener('keydown', (e) => {
+    const isFind = (e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F');
+    if (!isFind) return;
+    if (!state.rows.length) return;
+    if (cellModal.classList.contains('open')) return;
+    e.preventDefault();
+    openFindBar();
+  });
+
+  // Re-apply highlights when filters change (matches need rebuilding)
+  // Hook into applyFiltersAndSort: re-run find if active
+  const _aFAS = applyFiltersAndSort;
+  applyFiltersAndSort = function() {
+    _aFAS.apply(this, arguments);
+    if (findBar.classList.contains('open') && findTerm) {
+      performFind(findTerm);
+    }
+  };
 
 })();
 </script>
